@@ -27,12 +27,15 @@ import (
 	svcsdk "github.com/aws/aws-sdk-go/service/secretsmanager"
 	flag "github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrlrt "sigs.k8s.io/controller-runtime"
 	ctrlrtmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	svctypes "github.com/aws-controllers-k8s/secretsmanager-controller/apis/v1alpha1"
 	svcresource "github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource"
+
+	_ "github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource/s_ecr_et"
 
 	"github.com/aws-controllers-k8s/secretsmanager-controller/pkg/version"
 )
@@ -58,7 +61,13 @@ func main() {
 	flag.Parse()
 	ackCfg.SetupLogger()
 
-	if err := ackCfg.Validate(); err != nil {
+	managerFactories := svcresource.GetManagerFactories()
+	resourceGVKs := make([]schema.GroupVersionKind, 0, len(managerFactories))
+	for _, mf := range managerFactories {
+		resourceGVKs = append(resourceGVKs, mf.ResourceDescriptor().GroupVersionKind())
+	}
+
+	if err := ackCfg.Validate(ackcfg.WithGVKs(resourceGVKs)); err != nil {
 		setupLog.Error(
 			err, "Unable to create controller manager",
 			"aws.service", awsServiceAlias,

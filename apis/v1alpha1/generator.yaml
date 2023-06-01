@@ -1,3 +1,18 @@
-ignore:
-  resource_names:
-      - Secret
+resources:
+  Secret:
+    is_arn_primary_key: true
+    renames:
+      operations:
+        DescribeSecret:
+          input_fields:
+            SecretId: Name
+#    fields:
+#      SecretId:
+#        is_read_only: true
+##        is_immutable: true
+##        is_primary_key: true
+#        is_required: true
+#        from:
+#          operation: CreateSecret
+#          path: Name
+

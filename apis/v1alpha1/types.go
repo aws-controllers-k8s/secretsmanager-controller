@@ -27,3 +27,75 @@ var (
 	_ = &aws.JSONValue{}
 	_ = ackv1alpha1.AWSAccountID("")
 )
+
+// Allows you to add filters when you use the search function in Secrets Manager.
+// For more information, see Find secrets in Secrets Manager (https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html).
+type Filter struct {
+	Key    *string   `json:"key,omitempty"`
+	Values []*string `json:"values,omitempty"`
+}
+
+// A custom type that specifies a Region and the KmsKeyId for a replica secret.
+type ReplicaRegionType struct {
+	KMSKeyID *string `json:"kmsKeyID,omitempty"`
+	Region   *string `json:"region,omitempty"`
+}
+
+// A replication object consisting of a RegionReplicationStatus object and includes
+// a Region, KMSKeyId, status, and status message.
+type ReplicationStatusType struct {
+	KMSKeyID         *string      `json:"kmsKeyID,omitempty"`
+	LastAccessedDate *metav1.Time `json:"lastAccessedDate,omitempty"`
+	Region           *string      `json:"region,omitempty"`
+	Status           *string      `json:"status,omitempty"`
+	StatusMessage    *string      `json:"statusMessage,omitempty"`
+}
+
+// A structure that defines the rotation configuration for the secret.
+type RotationRulesType struct {
+	AutomaticallyAfterDays *int64  `json:"automaticallyAfterDays,omitempty"`
+	Duration               *string `json:"duration,omitempty"`
+	ScheduleExpression     *string `json:"scheduleExpression,omitempty"`
+}
+
+// A structure that contains the details about a secret. It does not include
+// the encrypted SecretString and SecretBinary values. To get those values,
+// use GetSecretValue (https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html) .
+type SecretListEntry struct {
+	ARN               *string      `json:"arn,omitempty"`
+	CreatedDate       *metav1.Time `json:"createdDate,omitempty"`
+	DeletedDate       *metav1.Time `json:"deletedDate,omitempty"`
+	Description       *string      `json:"description,omitempty"`
+	KMSKeyID          *string      `json:"kmsKeyID,omitempty"`
+	LastAccessedDate  *metav1.Time `json:"lastAccessedDate,omitempty"`
+	LastChangedDate   *metav1.Time `json:"lastChangedDate,omitempty"`
+	LastRotatedDate   *metav1.Time `json:"lastRotatedDate,omitempty"`
+	Name              *string      `json:"name,omitempty"`
+	NextRotationDate  *metav1.Time `json:"nextRotationDate,omitempty"`
+	OwningService     *string      `json:"owningService,omitempty"`
+	PrimaryRegion     *string      `json:"primaryRegion,omitempty"`
+	RotationEnabled   *bool        `json:"rotationEnabled,omitempty"`
+	RotationLambdaARN *string      `json:"rotationLambdaARN,omitempty"`
+	// A structure that defines the rotation configuration for the secret.
+	RotationRules          *RotationRulesType   `json:"rotationRules,omitempty"`
+	SecretVersionsToStages map[string][]*string `json:"secretVersionsToStages,omitempty"`
+	Tags                   []*Tag               `json:"tags,omitempty"`
+}
+
+// A structure that contains information about one version of a secret.
+type SecretVersionsListEntry struct {
+	LastAccessedDate *metav1.Time `json:"lastAccessedDate,omitempty"`
+	VersionID        *string      `json:"versionID,omitempty"`
+	VersionStages    []*string    `json:"versionStages,omitempty"`
+}
+
+// A structure that contains information about a tag.
+type Tag struct {
+	Key   *string `json:"key,omitempty"`
+	Value *string `json:"value,omitempty"`
+}
+
+// Displays errors that occurred during validation of the resource policy.
+type ValidationErrorsEntry struct {
+	CheckName *string `json:"checkName,omitempty"`
+}
