@@ -1,5 +1,9 @@
 resources:
   Secret:
+    exceptions:
+      errors:
+        404:
+          code: ResourceNotFoundException
     is_arn_primary_key: true
     renames:
       operations:
