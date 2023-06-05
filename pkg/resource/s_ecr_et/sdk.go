@@ -335,9 +335,6 @@ func (rm *resourceManager) sdkUpdate(
 	if err != nil {
 		return nil, err
 	}
-	if input.SecretId == nil {
-		input.SecretId = latest.ko.Spec.Name
-	}
 
 	var resp *svcsdk.UpdateSecretOutput
 	_ = resp
@@ -393,6 +390,9 @@ func (rm *resourceManager) newUpdateRequestPayload(
 	if r.ko.Spec.SecretBinary != nil {
 		res.SetSecretBinary(r.ko.Spec.SecretBinary)
 	}
+	if r.ko.Spec.Name != nil {
+		res.SetSecretId(*r.ko.Spec.Name)
+	}
 	if r.ko.Spec.SecretString != nil {
 		res.SetSecretString(*r.ko.Spec.SecretString)
 	}
@@ -414,10 +414,6 @@ func (rm *resourceManager) sdkDelete(
 	if err != nil {
 		return nil, err
 	}
-	if input.SecretId == nil {
-		input.SecretId = r.ko.Spec.Name
-	}
-
 	var resp *svcsdk.DeleteSecretOutput
 	_ = resp
 	resp, err = rm.sdkapi.DeleteSecretWithContext(ctx, input)
@@ -431,6 +427,10 @@ func (rm *resourceManager) newDeleteRequestPayload(
 	r *resource,
 ) (*svcsdk.DeleteSecretInput, error) {
 	res := &svcsdk.DeleteSecretInput{}
+
+	if r.ko.Spec.Name != nil {
+		res.SetSecretId(*r.ko.Spec.Name)
+	}
 
 	return res, nil
 }
