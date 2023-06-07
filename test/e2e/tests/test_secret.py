@@ -21,11 +21,15 @@ import boto3
 
 from acktest.resources import random_suffix_name
 from acktest.k8s import resource as k8s
+from acktest import tags
 from e2e import service_marker, CRD_GROUP, CRD_VERSION, load_secretsmanager_resource
 from e2e.replacement_values import REPLACEMENT_VALUES
+from e2e import secret
 
 RESOURCE_KIND = "Secret"
 RESOURCE_PLURAL = "secrets"
+
+DELETE_WAIT_AFTER_SECONDS = 5
 
 
 @pytest.fixture(scope="module")
@@ -53,13 +57,15 @@ def simple_secret():
 
     yield cr, ref
 
-    DELETE_WAIT_AFTER_SECONDS = 5
     # Delete k8s resource
     _, deleted = k8s.delete_custom_resource(
         ref,
         period_length=DELETE_WAIT_AFTER_SECONDS,
     )
     assert deleted
+
+    delete_date = secret.get_deleted_date(resource_name)
+    assert delete_date is not None
 
 
 @service_marker
@@ -70,9 +76,17 @@ class TestSecret:
 
         time.sleep(5)
 
-        logging.debug(ref)
-        logging.debug(res)
         cr = k8s.get_resource(ref)
         assert cr is not None
         assert 'spec' in cr
         assert 'arn' in cr['status']['ackResourceMetadata']
+
+        secret_name = cr['spec']['name']
+        latest_tags = secret.get_tags(secret_name)
+        expect_tags = {
+            "key1": "value1",
+        }
+
+        tags.assert_equal_without_ack_tags(
+            expect_tags, latest_tags,
+        )
