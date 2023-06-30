@@ -1,11 +1,19 @@
 resources:
   Secret:
+    fields:
+      ID:
+        from:
+          operation: DescribeSecret
+          path: ARN
+        is_read_only: true
+      Name:
+        is_primary_key: true
+        is_immutable: true
     exceptions:
       errors:
         404:
           # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_DescribeSecret.html#API_DescribeSecret_Errors
           code: ResourceNotFoundException
-    is_arn_primary_key: true
     renames:
       # SecretId
       #  The ARN or name of the secret.
@@ -13,10 +21,10 @@ resources:
       operations:
         DescribeSecret:
           input_fields:
-           SecretId: Name
+           SecretId: ID
         UpdateSecret:
           input_fields:
-           SecretId: Name
+           SecretId: ID
         DeleteSecret:
           input_fields:
-           SecretId: Name
+           SecretId: ID

@@ -161,6 +161,9 @@ type SecretStatus struct {
 	// resource
 	// +kubebuilder:validation:Optional
 	Conditions []*ackv1alpha1.Condition `json:"conditions"`
+	// The ARN of the secret.
+	// +kubebuilder:validation:Optional
+	ID *string `json:"id,omitempty"`
 	// A list of the replicas of this secret and their status:
 	//
 	//    * Failed, which indicates that the replica was not created.

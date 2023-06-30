@@ -164,7 +164,7 @@ func (rm *resourceManager) sdkFind(
 func (rm *resourceManager) requiredFieldsMissingFromReadOneInput(
 	r *resource,
 ) bool {
-	return r.ko.Spec.Name == nil
+	return r.ko.Status.ID == nil
 
 }
 
@@ -175,8 +175,8 @@ func (rm *resourceManager) newDescribeRequestPayload(
 ) (*svcsdk.DescribeSecretInput, error) {
 	res := &svcsdk.DescribeSecretInput{}
 
-	if r.ko.Spec.Name != nil {
-		res.SetSecretId(*r.ko.Spec.Name)
+	if r.ko.Status.ID != nil {
+		res.SetSecretId(*r.ko.Status.ID)
 	}
 
 	return res, nil
@@ -331,6 +331,10 @@ func (rm *resourceManager) sdkUpdate(
 	defer func() {
 		exit(err)
 	}()
+	if immutableFieldChanges := rm.getImmutableFieldChanges(delta); len(immutableFieldChanges) > 0 {
+		msg := fmt.Sprintf("Immutable Spec fields have been modified: %s", strings.Join(immutableFieldChanges, ","))
+		return nil, ackerr.NewTerminalError(fmt.Errorf(msg))
+	}
 	input, err := rm.newUpdateRequestPayload(ctx, desired, delta)
 	if err != nil {
 		return nil, err
@@ -390,8 +394,8 @@ func (rm *resourceManager) newUpdateRequestPayload(
 	if r.ko.Spec.SecretBinary != nil {
 		res.SetSecretBinary(r.ko.Spec.SecretBinary)
 	}
-	if r.ko.Spec.Name != nil {
-		res.SetSecretId(*r.ko.Spec.Name)
+	if r.ko.Status.ID != nil {
+		res.SetSecretId(*r.ko.Status.ID)
 	}
 	if r.ko.Spec.SecretString != nil {
 		res.SetSecretString(*r.ko.Spec.SecretString)
@@ -428,8 +432,8 @@ func (rm *resourceManager) newDeleteRequestPayload(
 ) (*svcsdk.DeleteSecretInput, error) {
 	res := &svcsdk.DeleteSecretInput{}
 
-	if r.ko.Spec.Name != nil {
-		res.SetSecretId(*r.ko.Spec.Name)
+	if r.ko.Status.ID != nil {
+		res.SetSecretId(*r.ko.Status.ID)
 	}
 
 	return res, nil
@@ -536,4 +540,16 @@ func (rm *resourceManager) updateConditions(
 func (rm *resourceManager) terminalAWSError(err error) bool {
 	// No terminal_errors specified for this resource in generator config
 	return false
+}
+
+// getImmutableFieldChanges returns list of immutable fields from the
+func (rm *resourceManager) getImmutableFieldChanges(
+	delta *ackcompare.Delta,
+) []string {
+	var fields []string
+	if delta.DifferentAt("Spec.Name") {
+		fields = append(fields, "Name")
+	}
+
+	return fields
 }

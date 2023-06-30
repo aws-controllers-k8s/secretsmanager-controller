@@ -416,6 +416,11 @@ func (in *SecretStatus) DeepCopyInto(out *SecretStatus) {
 			}
 		}
 	}
+	if in.ID != nil {
+		in, out := &in.ID, &out.ID
+		*out = new(string)
+		**out = **in
+	}
 	if in.ReplicationStatus != nil {
 		in, out := &in.ReplicationStatus, &out.ReplicationStatus
 		*out = make([]*ReplicationStatusType, len(*in))
