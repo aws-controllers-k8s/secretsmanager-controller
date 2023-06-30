@@ -279,9 +279,6 @@ func (rm *resourceManager) newCreateRequestPayload(
 		}
 		res.SetAddReplicaRegions(f0)
 	}
-	if r.ko.Spec.ClientRequestToken != nil {
-		res.SetClientRequestToken(*r.ko.Spec.ClientRequestToken)
-	}
 	if r.ko.Spec.Description != nil {
 		res.SetDescription(*r.ko.Spec.Description)
 	}
@@ -301,18 +298,18 @@ func (rm *resourceManager) newCreateRequestPayload(
 		res.SetSecretString(*r.ko.Spec.SecretString)
 	}
 	if r.ko.Spec.Tags != nil {
-		f8 := []*svcsdk.Tag{}
-		for _, f8iter := range r.ko.Spec.Tags {
-			f8elem := &svcsdk.Tag{}
-			if f8iter.Key != nil {
-				f8elem.SetKey(*f8iter.Key)
+		f7 := []*svcsdk.Tag{}
+		for _, f7iter := range r.ko.Spec.Tags {
+			f7elem := &svcsdk.Tag{}
+			if f7iter.Key != nil {
+				f7elem.SetKey(*f7iter.Key)
 			}
-			if f8iter.Value != nil {
-				f8elem.SetValue(*f8iter.Value)
+			if f7iter.Value != nil {
+				f7elem.SetValue(*f7iter.Value)
 			}
-			f8 = append(f8, f8elem)
+			f7 = append(f7, f7elem)
 		}
-		res.SetTags(f8)
+		res.SetTags(f7)
 	}
 
 	return res, nil
@@ -382,9 +379,6 @@ func (rm *resourceManager) newUpdateRequestPayload(
 ) (*svcsdk.UpdateSecretInput, error) {
 	res := &svcsdk.UpdateSecretInput{}
 
-	if r.ko.Spec.ClientRequestToken != nil {
-		res.SetClientRequestToken(*r.ko.Spec.ClientRequestToken)
-	}
 	if r.ko.Spec.Description != nil {
 		res.SetDescription(*r.ko.Spec.Description)
 	}

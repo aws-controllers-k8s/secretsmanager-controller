@@ -339,11 +339,6 @@ func (in *SecretSpec) DeepCopyInto(out *SecretSpec) {
 			}
 		}
 	}
-	if in.ClientRequestToken != nil {
-		in, out := &in.ClientRequestToken, &out.ClientRequestToken
-		*out = new(string)
-		**out = **in
-	}
 	if in.Description != nil {
 		in, out := &in.Description, &out.Description
 		*out = new(string)
