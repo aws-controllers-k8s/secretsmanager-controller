@@ -35,7 +35,7 @@ import (
 	svctypes "github.com/aws-controllers-k8s/secretsmanager-controller/apis/v1alpha1"
 	svcresource "github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource"
 
-	_ "github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource/s_ecr_et"
+	_ "github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource/secret"
 
 	"github.com/aws-controllers-k8s/secretsmanager-controller/pkg/version"
 )
