@@ -61,6 +61,11 @@ func (rm *resourceManager) sdkFind(
 	defer func() {
 		exit(err)
 	}()
+	// For adoption, we need to check if the secret exists in AWS Secrets Manager
+	if r.ko.Status.ID == nil {
+		r.ko.Status.ID = r.ko.Spec.Name
+	}
+
 	// If any required fields in the input shape are missing, AWS resource is
 	// not created yet. Return NotFound here to indicate to callers that the
 	// resource isn't yet created.
