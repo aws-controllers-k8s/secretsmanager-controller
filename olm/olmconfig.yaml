@@ -1,5 +1,3 @@
-# This configuration is a placeholder. Replace any values with relevant values for your
-# service controller project.
 ---
 annotations:
   capabilityLevel: Basic Install
@@ -13,7 +11,13 @@ description: |-
   **About Amazon Secrets Manager**
 
 
-  {ADD YOUR DESCRIPTION HERE}
+  AWS Secrets Manager helps you manage, retrieve, and rotate database credentials, application credentials, OAuth tokens, 
+  API keys, and other secrets throughout their lifecycles. [Many AWS services that use secrets](https://docs.aws.amazon.com/secretsmanager/latest/userguide/integrating.html) store them in Secrets Manager.
+  
+  
+  Secrets Manager helps you improve your security posture, because you no longer need hard-coded credentials in application source code. 
+  Storing the credentials in Secrets Manager helps avoid possible compromise by anyone who can inspect your application or the components. 
+  You replace hard-coded credentials with a runtime call to the Secrets Manager service to retrieve credentials dynamically when you need them.
 
 
   **About the AWS Controllers for Kubernetes**
@@ -28,13 +32,11 @@ description: |-
 
   Please follow the following link: [Red Hat OpenShift](https://aws-controllers-k8s.github.io/community/docs/user-docs/openshift/)
 samples:
-- kind: ExampleCustomKind
-  spec: '{}'
-- kind: SecondExampleCustomKind
+- kind: Secret
   spec: '{}'
 maintainers:
 - name: "secretsmanager maintainer team"
   email: "ack-maintainers@amazon.com"
 links:
 - name: Amazon Secrets Manager Developer Resources
-  url: https://aws.amazon.com/Secrets Manager/developer-resources/
+  url: https://aws.amazon.com/secrets-manager/resources
