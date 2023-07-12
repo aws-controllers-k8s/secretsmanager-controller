@@ -9,6 +9,7 @@ rules:
 - apiGroups:
   - secretsmanager.services.k8s.aws
   resources:
+  - secrets
   verbs:
   - get
   - list
