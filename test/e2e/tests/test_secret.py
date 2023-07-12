@@ -71,7 +71,7 @@ def simple_secret():
 @service_marker
 @pytest.mark.canary
 class TestSecret:
-    def test_create(self, simple_secret):
+    def test_create_delete(self, simple_secret):
         (res, ref) = simple_secret
 
         time.sleep(5)
@@ -90,3 +90,6 @@ class TestSecret:
         tags.assert_equal_without_ack_tags(
             expect_tags, latest_tags,
         )
+
+        value = secret.get_secret_value(secret_name)
+        assert value == '{"env":"test"}'
