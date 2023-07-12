@@ -6,8 +6,6 @@ resources:
     hooks:
       sdk_create_pre_set_output:
         template_path: hooks/secret/sdk_create_pre_set_output.go.tpl
-      sdk_read_one_pre_build_request:
-        template_path: hooks/secret/sdk_read_one_pre_build_request.go.tpl
       sdk_read_one_pre_set_output:
         template_path: hooks/secret/sdk_read_one_pre_set_output.go.tpl
     fields:

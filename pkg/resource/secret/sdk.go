@@ -61,11 +61,6 @@ func (rm *resourceManager) sdkFind(
 	defer func() {
 		exit(err)
 	}()
-	// For adoption, we need to check if the secret exists in AWS Secrets Manager, but not in our k8s CR.
-	if r.ko.Status.ID == nil {
-		r.ko.Status.ID = r.ko.Spec.Name
-	}
-
 	// If any required fields in the input shape are missing, AWS resource is
 	// not created yet. Return NotFound here to indicate to callers that the
 	// resource isn't yet created.
@@ -94,8 +89,7 @@ func (rm *resourceManager) sdkFind(
 	// Merge in the information we read from the API call above to the copy of
 	// the original Kubernetes object we passed to the function
 	ko := r.ko.DeepCopy()
-	// we use secret name as ID for adoption, set ID when we get the ARN
-	if ko.Status.ID == ko.Spec.Name {
+	if resp.ARN != nil {
 		ko.Status.ID = resp.ARN
 	}
 
