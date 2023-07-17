@@ -23,8 +23,6 @@ import (
 // SecretSpec defines the desired state of Secret.
 type SecretSpec struct {
 
-	// A list of Regions and KMS keys to replicate secrets.
-	AddReplicaRegions []*ReplicaRegionType `json:"addReplicaRegions,omitempty"`
 	// The description of the secret.
 	Description *string `json:"description,omitempty"`
 	// Specifies whether to overwrite a secret with the same name in the destination
@@ -56,6 +54,8 @@ type SecretSpec struct {
 	// random characters after the secret name at the end of the ARN.
 	// +kubebuilder:validation:Required
 	Name *string `json:"name"`
+	// A list of Regions and KMS keys to replicate secrets.
+	ReplicaRegions []*ReplicaRegionType `json:"replicaRegions,omitempty"`
 	// The binary data to encrypt and store in the new version of the secret. We
 	// recommend that you store your binary data in a file and then pass the contents
 	// of the file as a parameter.

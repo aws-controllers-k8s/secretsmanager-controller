@@ -271,9 +271,9 @@ func (rm *resourceManager) newCreateRequestPayload(
 ) (*svcsdk.CreateSecretInput, error) {
 	res := &svcsdk.CreateSecretInput{}
 
-	if r.ko.Spec.AddReplicaRegions != nil {
+	if r.ko.Spec.ReplicaRegions != nil {
 		f0 := []*svcsdk.ReplicaRegionType{}
-		for _, f0iter := range r.ko.Spec.AddReplicaRegions {
+		for _, f0iter := range r.ko.Spec.ReplicaRegions {
 			f0elem := &svcsdk.ReplicaRegionType{}
 			if f0iter.KMSKeyID != nil {
 				f0elem.SetKmsKeyId(*f0iter.KMSKeyID)

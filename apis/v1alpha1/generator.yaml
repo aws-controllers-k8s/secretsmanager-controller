@@ -36,3 +36,6 @@ resources:
         DeleteSecret:
           input_fields:
            SecretId: ID
+        CreateSecret:
+          input_fields:
+           AddReplicaRegions: ReplicaRegions
