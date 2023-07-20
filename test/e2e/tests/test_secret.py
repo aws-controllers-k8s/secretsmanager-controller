@@ -14,17 +14,15 @@
 """Integration tests for the SecretsManager Secret API.
 """
 
+import logging
 import pytest
 import time
-import logging
-import boto3
-
-from acktest.resources import random_suffix_name
-from acktest.k8s import resource as k8s
 from acktest import tags
+from acktest.k8s import resource as k8s
+from acktest.resources import random_suffix_name
 from e2e import service_marker, CRD_GROUP, CRD_VERSION, load_secretsmanager_resource
 from e2e.replacement_values import REPLACEMENT_VALUES
-from e2e import secret
+from e2e.tests.helper import SecretsManagerValidator
 
 RESOURCE_KIND = "Secret"
 RESOURCE_PLURAL = "secrets"
@@ -33,7 +31,7 @@ DELETE_WAIT_AFTER_SECONDS = 5
 
 
 @pytest.fixture(scope="module")
-def simple_secret():
+def simple_secret(secretsmanager_client):
     resource_name = random_suffix_name("simple-secret", 24)
 
     replacements = REPLACEMENT_VALUES.copy()
@@ -64,14 +62,15 @@ def simple_secret():
     )
     assert deleted
 
-    delete_date = secret.get_deleted_date(resource_name)
+    response = secretsmanager_client.describe_secret(SecretId=resource_name)
+    delete_date = response['DeletedDate']
     assert delete_date is not None
 
 
 @service_marker
 @pytest.mark.canary
 class TestSecret:
-    def test_create_delete(self, simple_secret):
+    def test_create_delete(self, secretsmanager_client, simple_secret):
         (res, ref) = simple_secret
 
         time.sleep(5)
@@ -79,17 +78,15 @@ class TestSecret:
         cr = k8s.get_resource(ref)
         assert cr is not None
         assert 'spec' in cr
+        assert 'name' in cr["spec"]
         assert 'arn' in cr['status']['ackResourceMetadata']
 
         secret_name = cr['spec']['name']
-        latest_tags = secret.get_tags(secret_name)
+        secretsmanager_validator = SecretsManagerValidator(secretsmanager_client)
         expect_tags = {
             "key1": "value1",
         }
+        secretsmanager_validator.assert_tags(secret_name, expect_tags)
 
-        tags.assert_equal_without_ack_tags(
-            expect_tags, latest_tags,
-        )
-
-        value = secret.get_secret_value(secret_name)
-        assert value == '{"env":"test"}'
+        expected_value = '{"env":"test"}'
+        secretsmanager_validator.assert_secret_value(secret_name, expected_value)
