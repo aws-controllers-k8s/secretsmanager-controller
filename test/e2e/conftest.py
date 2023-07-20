@@ -21,6 +21,9 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line(
+        "markers", "canary: mark test to also run in canary tests"
+    )
+    config.addinivalue_line(
         "markers", "service(arg): mark test associated with a given service"
     )
     config.addinivalue_line(
