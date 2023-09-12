@@ -85,7 +85,6 @@ def simple_secret(
 
 
 @service_marker
-@pytest.mark.canary
 class TestSecret:
     def test_create_delete(self, secretsmanager_client, simple_secret):
         (res, ref) = simple_secret
