@@ -366,7 +366,7 @@ func (in *SecretSpec) DeepCopyInto(out *SecretSpec) {
 	}
 	if in.SecretString != nil {
 		in, out := &in.SecretString, &out.SecretString
-		*out = new(string)
+		*out = new(corev1alpha1.SecretKeyReference)
 		**out = **in
 	}
 	if in.Tags != nil {

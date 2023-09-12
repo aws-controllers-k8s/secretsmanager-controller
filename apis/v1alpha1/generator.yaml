@@ -17,6 +17,8 @@ resources:
       Name:
         is_primary_key: true
         is_immutable: true
+      SecretString:
+        is_secret: true
     exceptions:
       errors:
         404:
@@ -29,13 +31,13 @@ resources:
       operations:
         DescribeSecret:
           input_fields:
-           SecretId: ID
+            SecretId: ID
         UpdateSecret:
           input_fields:
-           SecretId: ID
+            SecretId: ID
         DeleteSecret:
           input_fields:
-           SecretId: ID
+            SecretId: ID
         CreateSecret:
           input_fields:
-           AddReplicaRegions: ReplicaRegions
+            AddReplicaRegions: ReplicaRegions

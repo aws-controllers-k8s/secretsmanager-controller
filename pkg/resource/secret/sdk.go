@@ -301,7 +301,13 @@ func (rm *resourceManager) newCreateRequestPayload(
 		res.SetSecretBinary(r.ko.Spec.SecretBinary)
 	}
 	if r.ko.Spec.SecretString != nil {
-		res.SetSecretString(*r.ko.Spec.SecretString)
+		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.SecretString)
+		if err != nil {
+			return nil, ackrequeue.Needed(err)
+		}
+		if tmpSecret != "" {
+			res.SetSecretString(tmpSecret)
+		}
 	}
 	if r.ko.Spec.Tags != nil {
 		f7 := []*svcsdk.Tag{}
@@ -398,7 +404,13 @@ func (rm *resourceManager) newUpdateRequestPayload(
 		res.SetSecretId(*r.ko.Status.ID)
 	}
 	if r.ko.Spec.SecretString != nil {
-		res.SetSecretString(*r.ko.Spec.SecretString)
+		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.SecretString)
+		if err != nil {
+			return nil, ackrequeue.Needed(err)
+		}
+		if tmpSecret != "" {
+			res.SetSecretString(tmpSecret)
+		}
 	}
 
 	return res, nil

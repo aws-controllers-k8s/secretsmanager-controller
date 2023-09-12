@@ -73,7 +73,7 @@ type SecretSpec struct {
 	// Manager puts the protected secret text in only the SecretString parameter.
 	// The Secrets Manager console stores the information as a JSON structure of
 	// key/value pairs that a Lambda rotation function can parse.
-	SecretString *string `json:"secretString,omitempty"`
+	SecretString *ackv1alpha1.SecretKeyReference `json:"secretString,omitempty"`
 	// A list of tags to attach to the secret. Each tag is a key and value pair
 	// of strings in a JSON text string, for example:
 	//
