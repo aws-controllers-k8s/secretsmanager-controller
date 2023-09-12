@@ -359,11 +359,6 @@ func (in *SecretSpec) DeepCopyInto(out *SecretSpec) {
 			}
 		}
 	}
-	if in.SecretBinary != nil {
-		in, out := &in.SecretBinary, &out.SecretBinary
-		*out = make([]byte, len(*in))
-		copy(*out, *in)
-	}
 	if in.SecretString != nil {
 		in, out := &in.SecretString, &out.SecretString
 		*out = new(corev1alpha1.SecretKeyReference)

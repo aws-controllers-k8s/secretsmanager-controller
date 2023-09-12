@@ -297,9 +297,6 @@ func (rm *resourceManager) newCreateRequestPayload(
 	if r.ko.Spec.Name != nil {
 		res.SetName(*r.ko.Spec.Name)
 	}
-	if r.ko.Spec.SecretBinary != nil {
-		res.SetSecretBinary(r.ko.Spec.SecretBinary)
-	}
 	if r.ko.Spec.SecretString != nil {
 		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.SecretString)
 		if err != nil {
@@ -310,18 +307,18 @@ func (rm *resourceManager) newCreateRequestPayload(
 		}
 	}
 	if r.ko.Spec.Tags != nil {
-		f7 := []*svcsdk.Tag{}
-		for _, f7iter := range r.ko.Spec.Tags {
-			f7elem := &svcsdk.Tag{}
-			if f7iter.Key != nil {
-				f7elem.SetKey(*f7iter.Key)
+		f6 := []*svcsdk.Tag{}
+		for _, f6iter := range r.ko.Spec.Tags {
+			f6elem := &svcsdk.Tag{}
+			if f6iter.Key != nil {
+				f6elem.SetKey(*f6iter.Key)
 			}
-			if f7iter.Value != nil {
-				f7elem.SetValue(*f7iter.Value)
+			if f6iter.Value != nil {
+				f6elem.SetValue(*f6iter.Value)
 			}
-			f7 = append(f7, f7elem)
+			f6 = append(f6, f6elem)
 		}
-		res.SetTags(f7)
+		res.SetTags(f6)
 	}
 
 	return res, nil
@@ -396,9 +393,6 @@ func (rm *resourceManager) newUpdateRequestPayload(
 	}
 	if r.ko.Spec.KMSKeyID != nil {
 		res.SetKmsKeyId(*r.ko.Spec.KMSKeyID)
-	}
-	if r.ko.Spec.SecretBinary != nil {
-		res.SetSecretBinary(r.ko.Spec.SecretBinary)
 	}
 	if r.ko.Status.ID != nil {
 		res.SetSecretId(*r.ko.Status.ID)

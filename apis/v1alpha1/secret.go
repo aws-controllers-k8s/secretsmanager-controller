@@ -56,14 +56,6 @@ type SecretSpec struct {
 	Name *string `json:"name"`
 	// A list of Regions and KMS keys to replicate secrets.
 	ReplicaRegions []*ReplicaRegionType `json:"replicaRegions,omitempty"`
-	// The binary data to encrypt and store in the new version of the secret. We
-	// recommend that you store your binary data in a file and then pass the contents
-	// of the file as a parameter.
-	//
-	// Either SecretString or SecretBinary must have a value, but not both.
-	//
-	// This parameter is not available in the Secrets Manager console.
-	SecretBinary []byte `json:"secretBinary,omitempty"`
 	// The text data to encrypt and store in this new version of the secret. We
 	// recommend you use a JSON structure of key/value pairs for your secret value.
 	//

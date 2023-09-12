@@ -1,6 +1,7 @@
 ignore:
   field_paths:
     - CreateSecretInput.ClientRequestToken
+    - CreateSecretInput.SecretBinary
 resources:
   Secret:
     hooks:
