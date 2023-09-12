@@ -11,41 +11,18 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-import boto3
+import dataclasses
+
+from acktest.k8s import resource as k8s
 import pytest
 
-from acktest import k8s
+@dataclasses.dataclass
+class SecretKeyReference:
+    ns: str
+    name: str
+    key: str
+    val: str
 
-def pytest_addoption(parser):
-    parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
-
-def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "canary: mark test to also run in canary tests"
-    )
-    config.addinivalue_line(
-        "markers", "service(arg): mark test associated with a given service"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow to run"
-    )
-
-def pytest_collection_modifyitems(config, items):
-    if config.getoption("--runslow"):
-        return
-    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
-    for item in items:
-        if "slow" in item.keywords:
-            item.add_marker(skip_slow)
-
-# Provide a k8s client to interact with the integration test cluster
-@pytest.fixture(scope='class')
-def k8s_client():
-    return k8s._get_k8s_api_client()
-
-@pytest.fixture(scope='module')
-def secretsmanager_client():
-    return boto3.client('secretsmanager')
 
 @pytest.fixture(scope="module")
 def k8s_secret():

@@ -17,7 +17,7 @@
 import logging
 import pytest
 import time
-from acktest import tags
+from e2e.fixtures import k8s_secret
 from acktest.k8s import resource as k8s
 from acktest.resources import random_suffix_name
 from e2e import service_marker, CRD_GROUP, CRD_VERSION, load_secretsmanager_resource
@@ -31,11 +31,28 @@ DELETE_WAIT_AFTER_SECONDS = 5
 
 
 @pytest.fixture(scope="module")
-def simple_secret(secretsmanager_client):
+def simple_secret(
+        secretsmanager_client,
+        k8s_secret,
+):
+    secret_str_ns = "default"
+    secret_str_name = "secret-name"
+    secret_str_key = "secret_str_key"
+    secret_str_val = '{"env":"test"}'
+
+    secret = k8s_secret(
+        secret_str_ns,
+        secret_str_name,
+        secret_str_key,
+        secret_str_val,
+    )
     resource_name = random_suffix_name("simple-secret", 24)
 
     replacements = REPLACEMENT_VALUES.copy()
     replacements["SECRET_NAME"] = resource_name
+    replacements["K8S_SECRET_NAMESPACE"] = secret.ns
+    replacements["K8S_SECRET_NAME"] = secret.name
+    replacements["K8S_SECRET_KEY"] = secret.key
 
     # Load resource
     resource_data = load_secretsmanager_resource(
