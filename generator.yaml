@@ -1,3 +1,44 @@
 ignore:
-  resource_names:
-      - Secret
+  field_paths:
+    - CreateSecretInput.ClientRequestToken
+    - CreateSecretInput.SecretBinary
+resources:
+  Secret:
+    hooks:
+      sdk_create_pre_set_output:
+        template_path: hooks/secret/sdk_create_pre_set_output.go.tpl
+      sdk_read_one_pre_set_output:
+        template_path: hooks/secret/sdk_read_one_pre_set_output.go.tpl
+    fields:
+      ID:
+        from:
+          operation: DescribeSecret
+          path: ARN
+        is_read_only: true
+      Name:
+        is_primary_key: true
+        is_immutable: true
+      SecretString:
+        is_secret: true
+    exceptions:
+      errors:
+        404:
+          # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_DescribeSecret.html#API_DescribeSecret_Errors
+          code: ResourceNotFoundException
+    renames:
+      # SecretId
+      #  The ARN or name of the secret.
+      #  For an ARN, we recommend that you specify a complete ARN rather than a partial ARN. See Finding a secret from a partial ARN.The ARN or name of the secret.
+      operations:
+        DescribeSecret:
+          input_fields:
+            SecretId: ID
+        UpdateSecret:
+          input_fields:
+            SecretId: ID
+        DeleteSecret:
+          input_fields:
+            SecretId: ID
+        CreateSecret:
+          input_fields:
+            AddReplicaRegions: ReplicaRegions

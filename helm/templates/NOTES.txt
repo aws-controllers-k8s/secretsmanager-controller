@@ -1,10 +1,10 @@
 {{ .Chart.Name }} has been installed.
-This chart deploys "public.ecr.aws/aws-controllers-k8s/secretsmanager-controller:v0.0.0-non-release-version".
+This chart deploys "public.ecr.aws/aws-controllers-k8s/secretsmanager-controller:0.0.0-non-release-version".
 
 Check its status by running:
   kubectl --namespace {{ .Release.Namespace }} get pods -l "app.kubernetes.io/instance={{ .Release.Name }}"
 
-You are now able to create  () resources!
+You are now able to create AWS Secrets Manager (SecretsManager) resources!
 
 The controller is running in "{{ .Values.installScope }}" mode.
 The controller is configured to manage AWS resources in region: "{{ .Values.aws.region }}"

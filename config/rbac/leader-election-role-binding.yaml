@@ -1,0 +1,14 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: ack-system
+  name: secretsmanager-leader-election-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secretsmanager-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: ack-secretsmanager-controller
+  namespace: ack-system

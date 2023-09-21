@@ -1,8 +1,8 @@
 apiVersion: v1
 name: secretsmanager-chart
-description: A Helm chart for the ACK service controller for  ()
-version: v0.0.0-non-release-version
-appVersion: v0.0.0-non-release-version
+description: A Helm chart for the ACK service controller for AWS Secrets Manager (SecretsManager)
+version: 0.0.0-non-release-version
+appVersion: 0.0.0-non-release-version
 home: https://github.com/aws-controllers-k8s/secretsmanager-controller
 icon: https://raw.githubusercontent.com/aws/eks-charts/master/docs/logo/aws.png
 sources:
@@ -10,7 +10,7 @@ sources:
 maintainers:
   - name: ACK Admins
     url: https://github.com/orgs/aws-controllers-k8s/teams/ack-admin
-  - name:  Admins
+  - name: SecretsManager Admins
     url: https://github.com/orgs/aws-controllers-k8s/teams/secretsmanager-maintainer
 keywords:
   - aws
