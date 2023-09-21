@@ -43,28 +43,3 @@ def k8s_client():
 @pytest.fixture(scope='module')
 def secretsmanager_client():
     return boto3.client('secretsmanager')
-
-@pytest.fixture(scope="module")
-def k8s_secret():
-    """Manages the lifecycle of a Kubernetes Secret for use in tests.
-
-    Usage:
-        from e2e.fixtures import k8s_secret
-
-        class TestThing:
-            def test_thing(self, k8s_secret):
-                secret = k8s_secret(
-                    "default", "mysecret", "mykey", "myval",
-                )
-    """
-    created = []
-    def _k8s_secret(ns, name, key, val):
-        k8s.create_opaque_secret(ns, name, key, val)
-        secret_ref = SecretKeyReference(ns, name, key, val)
-        created.append(secret_ref)
-        return secret_ref
-
-    yield _k8s_secret
-
-    for secret_ref in created:
-        k8s.delete_secret(secret_ref.ns, secret_ref.name)
