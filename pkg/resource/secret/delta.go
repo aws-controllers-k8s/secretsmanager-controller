@@ -71,8 +71,12 @@ func newResourceDelta(
 			delta.Add("Spec.Name", a.ko.Spec.Name, b.ko.Spec.Name)
 		}
 	}
-	if !reflect.DeepEqual(a.ko.Spec.ReplicaRegions, b.ko.Spec.ReplicaRegions) {
+	if len(a.ko.Spec.ReplicaRegions) != len(b.ko.Spec.ReplicaRegions) {
 		delta.Add("Spec.ReplicaRegions", a.ko.Spec.ReplicaRegions, b.ko.Spec.ReplicaRegions)
+	} else if len(a.ko.Spec.ReplicaRegions) > 0 {
+		if !reflect.DeepEqual(a.ko.Spec.ReplicaRegions, b.ko.Spec.ReplicaRegions) {
+			delta.Add("Spec.ReplicaRegions", a.ko.Spec.ReplicaRegions, b.ko.Spec.ReplicaRegions)
+		}
 	}
 	if ackcompare.HasNilDifference(a.ko.Spec.SecretString, b.ko.Spec.SecretString) {
 		delta.Add("Spec.SecretString", a.ko.Spec.SecretString, b.ko.Spec.SecretString)

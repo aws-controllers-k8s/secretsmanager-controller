@@ -28,6 +28,12 @@ var (
 	_ = ackv1alpha1.AWSAccountID("")
 )
 
+// The error Secrets Manager encountered while retrieving an individual secret
+// as part of BatchGetSecretValue.
+type APIErrorType struct {
+	SecretID *string `json:"secretID,omitempty"`
+}
+
 // Allows you to add filters when you use the search function in Secrets Manager.
 // For more information, see Find secrets in Secrets Manager (https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html).
 type Filter struct {
@@ -80,6 +86,16 @@ type SecretListEntry struct {
 	RotationRules          *RotationRulesType   `json:"rotationRules,omitempty"`
 	SecretVersionsToStages map[string][]*string `json:"secretVersionsToStages,omitempty"`
 	Tags                   []*Tag               `json:"tags,omitempty"`
+}
+
+// A structure that contains the secret value and other details for a secret.
+type SecretValueEntry struct {
+	ARN           *string   `json:"arn,omitempty"`
+	Name          *string   `json:"name,omitempty"`
+	SecretBinary  []byte    `json:"secretBinary,omitempty"`
+	SecretString  *string   `json:"secretString,omitempty"`
+	VersionID     *string   `json:"versionID,omitempty"`
+	VersionStages []*string `json:"versionStages,omitempty"`
 }
 
 // A structure that contains information about one version of a secret.
