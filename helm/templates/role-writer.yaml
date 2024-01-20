@@ -10,7 +10,6 @@ rules:
   - secretsmanager.services.k8s.aws
   resources:
   - secrets
-
   verbs:
   - create
   - delete
