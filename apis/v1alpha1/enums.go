@@ -18,13 +18,13 @@ package v1alpha1
 type FilterNameStringType string
 
 const (
+	FilterNameStringType_all            FilterNameStringType = "all"
 	FilterNameStringType_description    FilterNameStringType = "description"
 	FilterNameStringType_name           FilterNameStringType = "name"
+	FilterNameStringType_owning_service FilterNameStringType = "owning-service"
+	FilterNameStringType_primary_region FilterNameStringType = "primary-region"
 	FilterNameStringType_tag_key        FilterNameStringType = "tag-key"
 	FilterNameStringType_tag_value      FilterNameStringType = "tag-value"
-	FilterNameStringType_primary_region FilterNameStringType = "primary-region"
-	FilterNameStringType_owning_service FilterNameStringType = "owning-service"
-	FilterNameStringType_all            FilterNameStringType = "all"
 )
 
 type SortOrderType string
@@ -37,7 +37,7 @@ const (
 type StatusType string
 
 const (
-	StatusType_InSync     StatusType = "InSync"
 	StatusType_Failed     StatusType = "Failed"
 	StatusType_InProgress StatusType = "InProgress"
+	StatusType_InSync     StatusType = "InSync"
 )
