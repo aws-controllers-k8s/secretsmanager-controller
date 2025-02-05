@@ -42,3 +42,5 @@ resources:
         CreateSecret:
           input_fields:
             AddReplicaRegions: ReplicaRegions
+sdk_names:
+  model_name: secrets-manager
