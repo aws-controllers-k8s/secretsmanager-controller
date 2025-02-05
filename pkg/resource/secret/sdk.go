@@ -28,8 +28,10 @@ import (
 	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
-	"github.com/aws/aws-sdk-go/aws"
-	svcsdk "github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	svcsdk "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	smithy "github.com/aws/smithy-go"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -40,8 +42,7 @@ import (
 var (
 	_ = &metav1.Time{}
 	_ = strings.ToLower("")
-	_ = &aws.JSONValue{}
-	_ = &svcsdk.SecretsManager{}
+	_ = &svcsdk.Client{}
 	_ = &svcapitypes.Secret{}
 	_ = ackv1alpha1.AWSAccountID("")
 	_ = &ackerr.NotFound
@@ -49,6 +50,7 @@ var (
 	_ = &reflect.Value{}
 	_ = fmt.Sprintf("")
 	_ = &ackrequeue.NoRequeue{}
+	_ = &aws.Config{}
 )
 
 // sdkFind returns SDK-specific information about a supplied resource
@@ -74,13 +76,11 @@ func (rm *resourceManager) sdkFind(
 	}
 
 	var resp *svcsdk.DescribeSecretOutput
-	resp, err = rm.sdkapi.DescribeSecretWithContext(ctx, input)
+	resp, err = rm.sdkapi.DescribeSecret(ctx, input)
 	rm.metrics.RecordAPICall("READ_ONE", "DescribeSecret", err)
 	if err != nil {
-		if reqErr, ok := ackerr.AWSRequestFailure(err); ok && reqErr.StatusCode() == 404 {
-			return nil, ackerr.NotFound
-		}
-		if awsErr, ok := ackerr.AWSError(err); ok && awsErr.Code() == "ResourceNotFoundException" {
+		var awsErr smithy.APIError
+		if errors.As(err, &awsErr) && awsErr.ErrorCode() == "ResourceNotFoundException" {
 			return nil, ackerr.NotFound
 		}
 		return nil, err
@@ -128,8 +128,8 @@ func (rm *resourceManager) sdkFind(
 			if f12iter.Region != nil {
 				f12elem.Region = f12iter.Region
 			}
-			if f12iter.Status != nil {
-				f12elem.Status = f12iter.Status
+			if f12iter.Status != "" {
+				f12elem.Status = aws.String(string(f12iter.Status))
 			}
 			if f12iter.StatusMessage != nil {
 				f12elem.StatusMessage = f12iter.StatusMessage
@@ -179,7 +179,7 @@ func (rm *resourceManager) newDescribeRequestPayload(
 	res := &svcsdk.DescribeSecretInput{}
 
 	if r.ko.Status.ID != nil {
-		res.SetSecretId(*r.ko.Status.ID)
+		res.SecretId = r.ko.Status.ID
 	}
 
 	return res, nil
@@ -204,7 +204,7 @@ func (rm *resourceManager) sdkCreate(
 
 	var resp *svcsdk.CreateSecretOutput
 	_ = resp
-	resp, err = rm.sdkapi.CreateSecretWithContext(ctx, input)
+	resp, err = rm.sdkapi.CreateSecret(ctx, input)
 	rm.metrics.RecordAPICall("CREATE", "CreateSecret", err)
 	if err != nil {
 		return nil, err
@@ -241,8 +241,8 @@ func (rm *resourceManager) sdkCreate(
 			if f2iter.Region != nil {
 				f2elem.Region = f2iter.Region
 			}
-			if f2iter.Status != nil {
-				f2elem.Status = f2iter.Status
+			if f2iter.Status != "" {
+				f2elem.Status = aws.String(string(f2iter.Status))
 			}
 			if f2iter.StatusMessage != nil {
 				f2elem.StatusMessage = f2iter.StatusMessage
@@ -272,30 +272,30 @@ func (rm *resourceManager) newCreateRequestPayload(
 	res := &svcsdk.CreateSecretInput{}
 
 	if r.ko.Spec.ReplicaRegions != nil {
-		f0 := []*svcsdk.ReplicaRegionType{}
+		f0 := []svcsdktypes.ReplicaRegionType{}
 		for _, f0iter := range r.ko.Spec.ReplicaRegions {
-			f0elem := &svcsdk.ReplicaRegionType{}
+			f0elem := &svcsdktypes.ReplicaRegionType{}
 			if f0iter.KMSKeyID != nil {
-				f0elem.SetKmsKeyId(*f0iter.KMSKeyID)
+				f0elem.KmsKeyId = f0iter.KMSKeyID
 			}
 			if f0iter.Region != nil {
-				f0elem.SetRegion(*f0iter.Region)
+				f0elem.Region = f0iter.Region
 			}
-			f0 = append(f0, f0elem)
+			f0 = append(f0, *f0elem)
 		}
-		res.SetAddReplicaRegions(f0)
+		res.AddReplicaRegions = f0
 	}
 	if r.ko.Spec.Description != nil {
-		res.SetDescription(*r.ko.Spec.Description)
+		res.Description = r.ko.Spec.Description
 	}
 	if r.ko.Spec.ForceOverwriteReplicaSecret != nil {
-		res.SetForceOverwriteReplicaSecret(*r.ko.Spec.ForceOverwriteReplicaSecret)
+		res.ForceOverwriteReplicaSecret = *r.ko.Spec.ForceOverwriteReplicaSecret
 	}
 	if r.ko.Spec.KMSKeyID != nil {
-		res.SetKmsKeyId(*r.ko.Spec.KMSKeyID)
+		res.KmsKeyId = r.ko.Spec.KMSKeyID
 	}
 	if r.ko.Spec.Name != nil {
-		res.SetName(*r.ko.Spec.Name)
+		res.Name = r.ko.Spec.Name
 	}
 	if r.ko.Spec.SecretString != nil {
 		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.SecretString)
@@ -303,22 +303,22 @@ func (rm *resourceManager) newCreateRequestPayload(
 			return nil, ackrequeue.Needed(err)
 		}
 		if tmpSecret != "" {
-			res.SetSecretString(tmpSecret)
+			res.SecretString = aws.String(tmpSecret)
 		}
 	}
 	if r.ko.Spec.Tags != nil {
-		f6 := []*svcsdk.Tag{}
+		f6 := []svcsdktypes.Tag{}
 		for _, f6iter := range r.ko.Spec.Tags {
-			f6elem := &svcsdk.Tag{}
+			f6elem := &svcsdktypes.Tag{}
 			if f6iter.Key != nil {
-				f6elem.SetKey(*f6iter.Key)
+				f6elem.Key = f6iter.Key
 			}
 			if f6iter.Value != nil {
-				f6elem.SetValue(*f6iter.Value)
+				f6elem.Value = f6iter.Value
 			}
-			f6 = append(f6, f6elem)
+			f6 = append(f6, *f6elem)
 		}
-		res.SetTags(f6)
+		res.Tags = f6
 	}
 
 	return res, nil
@@ -348,7 +348,7 @@ func (rm *resourceManager) sdkUpdate(
 
 	var resp *svcsdk.UpdateSecretOutput
 	_ = resp
-	resp, err = rm.sdkapi.UpdateSecretWithContext(ctx, input)
+	resp, err = rm.sdkapi.UpdateSecret(ctx, input)
 	rm.metrics.RecordAPICall("UPDATE", "UpdateSecret", err)
 	if err != nil {
 		return nil, err
@@ -389,13 +389,13 @@ func (rm *resourceManager) newUpdateRequestPayload(
 	res := &svcsdk.UpdateSecretInput{}
 
 	if r.ko.Spec.Description != nil {
-		res.SetDescription(*r.ko.Spec.Description)
+		res.Description = r.ko.Spec.Description
 	}
 	if r.ko.Spec.KMSKeyID != nil {
-		res.SetKmsKeyId(*r.ko.Spec.KMSKeyID)
+		res.KmsKeyId = r.ko.Spec.KMSKeyID
 	}
 	if r.ko.Status.ID != nil {
-		res.SetSecretId(*r.ko.Status.ID)
+		res.SecretId = r.ko.Status.ID
 	}
 	if r.ko.Spec.SecretString != nil {
 		tmpSecret, err := rm.rr.SecretValueFromReference(ctx, r.ko.Spec.SecretString)
@@ -403,7 +403,7 @@ func (rm *resourceManager) newUpdateRequestPayload(
 			return nil, ackrequeue.Needed(err)
 		}
 		if tmpSecret != "" {
-			res.SetSecretString(tmpSecret)
+			res.SecretString = aws.String(tmpSecret)
 		}
 	}
 
@@ -426,7 +426,7 @@ func (rm *resourceManager) sdkDelete(
 	}
 	var resp *svcsdk.DeleteSecretOutput
 	_ = resp
-	resp, err = rm.sdkapi.DeleteSecretWithContext(ctx, input)
+	resp, err = rm.sdkapi.DeleteSecret(ctx, input)
 	rm.metrics.RecordAPICall("DELETE", "DeleteSecret", err)
 	return nil, err
 }
@@ -439,7 +439,7 @@ func (rm *resourceManager) newDeleteRequestPayload(
 	res := &svcsdk.DeleteSecretInput{}
 
 	if r.ko.Status.ID != nil {
-		res.SetSecretId(*r.ko.Status.ID)
+		res.SecretId = r.ko.Status.ID
 	}
 
 	return res, nil
