@@ -24,9 +24,11 @@ import (
 type SecretSpec struct {
 
 	// The description of the secret.
+
 	Description *string `json:"description,omitempty"`
 	// Specifies whether to overwrite a secret with the same name in the destination
 	// Region. By default, secrets aren't overwritten.
+
 	ForceOverwriteReplicaSecret *bool `json:"forceOverwriteReplicaSecret,omitempty"`
 	// The ARN, key ID, or alias of the KMS key that Secrets Manager uses to encrypt
 	// the secret value in the secret. An alias is always prefixed by alias/, for
@@ -42,6 +44,7 @@ type SecretSpec struct {
 	// If the secret is in a different Amazon Web Services account from the credentials
 	// calling the API, then you can't use aws/secretsmanager to encrypt the secret,
 	// and you must create and use a customer managed KMS key.
+
 	KMSKeyID *string `json:"kmsKeyID,omitempty"`
 	// The name of the new secret.
 	//
@@ -52,9 +55,13 @@ type SecretSpec struct {
 	// you do so, you risk confusion and unexpected results when searching for a
 	// secret by partial ARN. Secrets Manager automatically adds a hyphen and six
 	// random characters after the secret name at the end of the ARN.
+
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable once set"
 	// +kubebuilder:validation:Required
+
 	Name *string `json:"name"`
 	// A list of Regions and KMS keys to replicate secrets.
+
 	ReplicaRegions []*ReplicaRegionType `json:"replicaRegions,omitempty"`
 	// The text data to encrypt and store in this new version of the secret. We
 	// recommend you use a JSON structure of key/value pairs for your secret value.
@@ -69,6 +76,7 @@ type SecretSpec struct {
 	// Sensitive: This field contains sensitive information, so the service does
 	// not include it in CloudTrail log entries. If you create your own log entries,
 	// you must also avoid logging the information in this field.
+
 	SecretString *ackv1alpha1.SecretKeyReference `json:"secretString,omitempty"`
 	// A list of tags to attach to the secret. Each tag is a key and value pair
 	// of strings in a JSON text string, for example:
@@ -93,6 +101,7 @@ type SecretSpec struct {
 	//
 	// For tag quotas and naming restrictions, see Service quotas for Tagging (https://docs.aws.amazon.com/general/latest/gr/arg.html#taged-reference-quotas)
 	// in the Amazon Web Services General Reference guide.
+
 	Tags []*Tag `json:"tags,omitempty"`
 }
 
@@ -103,7 +112,7 @@ type SecretStatus struct {
 	// constructed ARN for the resource
 	// +kubebuilder:validation:Optional
 	ACKResourceMetadata *ackv1alpha1.ResourceMetadata `json:"ackResourceMetadata"`
-	// All CRS managed by ACK have a common `Status.Conditions` member that
+	// All CRs managed by ACK have a common `Status.Conditions` member that
 	// contains a collection of `ackv1alpha1.Condition` objects that describe
 	// the various terminal states of the CR and its backend AWS service API
 	// resource
