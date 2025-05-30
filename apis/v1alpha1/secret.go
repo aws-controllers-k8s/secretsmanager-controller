@@ -110,7 +110,10 @@ type SecretStatus struct {
 	// resource
 	// +kubebuilder:validation:Optional
 	Conditions []*ackv1alpha1.Condition `json:"conditions"`
-	// The ARN of the secret.
+	// The ARN of the new secret. The ARN includes the name of the secret followed
+	// by six random characters. This ensures that if you create a new secret with
+	// the same name as a deleted secret, then users with access to the old secret
+	// don't get access to the new secret because the ARNs are different.
 	// +kubebuilder:validation:Optional
 	ID *string `json:"id,omitempty"`
 	// A list of the replicas of this secret and their status:
