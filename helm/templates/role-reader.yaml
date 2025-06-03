@@ -3,8 +3,15 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   creationTimestamp: null
-  name: ack-secretsmanager-reader
+  name: {{ include "ack-secretsmanager-controller.app.fullname" . }}-reader
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "ack-secretsmanager-controller.app.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    k8s-app: {{ include "ack-secretsmanager-controller.app.name" . }}
+    helm.sh/chart: {{ include "ack-secretsmanager-controller.chart.name-version" . }}
 rules:
 - apiGroups:
   - secretsmanager.services.k8s.aws
