@@ -66,21 +66,27 @@ func (rm *resourceManager) sdkFind(
 	// If any required fields in the input shape are missing, AWS resource is
 	// not created yet. Return NotFound here to indicate to callers that the
 	// resource isn't yet created.
-	if rm.requiredFieldsMissingFromReadOneInput(r) {
+	if rm.requiredFieldsMissingFromReadManyInput(r) {
 		return nil, ackerr.NotFound
 	}
 
-	input, err := rm.newDescribeRequestPayload(r)
+	input, err := rm.newListRequestPayload(r)
 	if err != nil {
 		return nil, err
 	}
+	input.Filters = []svcsdktypes.Filter{
+		{
+			Key:    "name",
+			Values: []string{*r.ko.Spec.Name},
+		},
+	}
 
-	var resp *svcsdk.DescribeSecretOutput
-	resp, err = rm.sdkapi.DescribeSecret(ctx, input)
-	rm.metrics.RecordAPICall("READ_ONE", "DescribeSecret", err)
+	var resp *svcsdk.ListSecretsOutput
+	resp, err = rm.sdkapi.ListSecrets(ctx, input)
+	rm.metrics.RecordAPICall("READ_MANY", "ListSecrets", err)
 	if err != nil {
 		var awsErr smithy.APIError
-		if errors.As(err, &awsErr) && awsErr.ErrorCode() == "ResourceNotFoundException" {
+		if errors.As(err, &awsErr) && awsErr.ErrorCode() == "UNKNOWN" {
 			return nil, ackerr.NotFound
 		}
 		return nil, err
@@ -89,98 +95,77 @@ func (rm *resourceManager) sdkFind(
 	// Merge in the information we read from the API call above to the copy of
 	// the original Kubernetes object we passed to the function
 	ko := r.ko.DeepCopy()
-	if resp.ARN != nil {
-		ko.Status.ID = resp.ARN
-	}
 
-	if ko.Status.ACKResourceMetadata == nil {
-		ko.Status.ACKResourceMetadata = &ackv1alpha1.ResourceMetadata{}
-	}
-	if resp.ARN != nil {
-		arn := ackv1alpha1.AWSResourceName(*resp.ARN)
-		ko.Status.ACKResourceMetadata.ARN = &arn
-	}
-	if resp.Description != nil {
-		ko.Spec.Description = resp.Description
-	} else {
-		ko.Spec.Description = nil
-	}
-	if resp.KmsKeyId != nil {
-		ko.Spec.KMSKeyID = resp.KmsKeyId
-	} else {
-		ko.Spec.KMSKeyID = nil
-	}
-	if resp.Name != nil {
-		ko.Spec.Name = resp.Name
-	} else {
-		ko.Spec.Name = nil
-	}
-	if resp.ReplicationStatus != nil {
-		f12 := []*svcapitypes.ReplicationStatusType{}
-		for _, f12iter := range resp.ReplicationStatus {
-			f12elem := &svcapitypes.ReplicationStatusType{}
-			if f12iter.KmsKeyId != nil {
-				f12elem.KMSKeyID = f12iter.KmsKeyId
+	found := false
+	for _, elem := range resp.SecretList {
+		if elem.ARN != nil {
+			if ko.Status.ACKResourceMetadata == nil {
+				ko.Status.ACKResourceMetadata = &ackv1alpha1.ResourceMetadata{}
 			}
-			if f12iter.LastAccessedDate != nil {
-				f12elem.LastAccessedDate = &metav1.Time{*f12iter.LastAccessedDate}
-			}
-			if f12iter.Region != nil {
-				f12elem.Region = f12iter.Region
-			}
-			if f12iter.Status != "" {
-				f12elem.Status = aws.String(string(f12iter.Status))
-			}
-			if f12iter.StatusMessage != nil {
-				f12elem.StatusMessage = f12iter.StatusMessage
-			}
-			f12 = append(f12, f12elem)
+			tmpARN := ackv1alpha1.AWSResourceName(*elem.ARN)
+			ko.Status.ACKResourceMetadata.ARN = &tmpARN
 		}
-		ko.Status.ReplicationStatus = f12
-	} else {
-		ko.Status.ReplicationStatus = nil
-	}
-	if resp.Tags != nil {
-		f16 := []*svcapitypes.Tag{}
-		for _, f16iter := range resp.Tags {
-			f16elem := &svcapitypes.Tag{}
-			if f16iter.Key != nil {
-				f16elem.Key = f16iter.Key
-			}
-			if f16iter.Value != nil {
-				f16elem.Value = f16iter.Value
-			}
-			f16 = append(f16, f16elem)
+		if elem.Description != nil {
+			ko.Spec.Description = elem.Description
+		} else {
+			ko.Spec.Description = nil
 		}
-		ko.Spec.Tags = f16
-	} else {
-		ko.Spec.Tags = nil
+		if elem.KmsKeyId != nil {
+			ko.Spec.KMSKeyID = elem.KmsKeyId
+		} else {
+			ko.Spec.KMSKeyID = nil
+		}
+		if elem.Name != nil {
+			ko.Spec.Name = elem.Name
+		} else {
+			ko.Spec.Name = nil
+		}
+		if elem.Tags != nil {
+			f16 := []*svcapitypes.Tag{}
+			for _, f16iter := range elem.Tags {
+				f16elem := &svcapitypes.Tag{}
+				if f16iter.Key != nil {
+					f16elem.Key = f16iter.Key
+				}
+				if f16iter.Value != nil {
+					f16elem.Value = f16iter.Value
+				}
+				f16 = append(f16, f16elem)
+			}
+			ko.Spec.Tags = f16
+		} else {
+			ko.Spec.Tags = nil
+		}
+		found = true
+		break
+	}
+	if !found {
+		return nil, ackerr.NotFound
 	}
 
 	rm.setStatusDefaults(ko)
+	if resp.SecretList[0].ARN != nil {
+		ko.Status.ID = resp.SecretList[0].ARN
+	}
+
 	return &resource{ko}, nil
 }
 
-// requiredFieldsMissingFromReadOneInput returns true if there are any fields
-// for the ReadOne Input shape that are required but not present in the
+// requiredFieldsMissingFromReadManyInput returns true if there are any fields
+// for the ReadMany Input shape that are required but not present in the
 // resource's Spec or Status
-func (rm *resourceManager) requiredFieldsMissingFromReadOneInput(
+func (rm *resourceManager) requiredFieldsMissingFromReadManyInput(
 	r *resource,
 ) bool {
-	return r.ko.Status.ID == nil
-
+	return false
 }
 
-// newDescribeRequestPayload returns SDK-specific struct for the HTTP request
-// payload of the Describe API call for the resource
-func (rm *resourceManager) newDescribeRequestPayload(
+// newListRequestPayload returns SDK-specific struct for the HTTP request
+// payload of the List API call for the resource
+func (rm *resourceManager) newListRequestPayload(
 	r *resource,
-) (*svcsdk.DescribeSecretInput, error) {
-	res := &svcsdk.DescribeSecretInput{}
-
-	if r.ko.Status.ID != nil {
-		res.SecretId = r.ko.Status.ID
-	}
+) (*svcsdk.ListSecretsInput, error) {
+	res := &svcsdk.ListSecretsInput{}
 
 	return res, nil
 }

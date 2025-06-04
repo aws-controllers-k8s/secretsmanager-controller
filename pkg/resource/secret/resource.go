@@ -93,9 +93,9 @@ func (r *resource) SetIdentifiers(identifier *ackv1alpha1.AWSIdentifiers) error 
 	}
 	r.ko.Spec.Name = &identifier.NameOrID
 
-	f0, f0ok := identifier.AdditionalKeys["id"]
-	if f0ok {
-		r.ko.Status.ID = aws.String(f0)
+	tmp, ok := identifier.AdditionalKeys["id"]
+	if ok {
+		r.ko.Status.ID = aws.String(tmp)
 	}
 
 	return nil
