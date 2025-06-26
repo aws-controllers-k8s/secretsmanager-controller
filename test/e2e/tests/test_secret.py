@@ -28,15 +28,17 @@ RESOURCE_KIND = "Secret"
 RESOURCE_PLURAL = "secrets"
 
 DELETE_WAIT_AFTER_SECONDS = 5
+UPDATE_WAIT_AFTER_SECONDS = 5
 
 
 @pytest.fixture(scope="module")
 def simple_secret(
+        request,
         secretsmanager_client,
         k8s_secret,
 ):
     secret_str_ns = "default"
-    secret_str_name = "secret-name"
+    secret_str_name = request.param.get("name")
     secret_str_key = "secret_str_key"
     secret_str_val = '{"env":"test"}'
 
@@ -86,6 +88,15 @@ def simple_secret(
 
 @service_marker
 class TestSecret:
+    @pytest.mark.parametrize(
+        "simple_secret",
+        [
+            {
+                "name": "test-secret",
+            },
+        ],
+        indirect=True,
+    )
     def test_create_delete(self, secretsmanager_client, simple_secret):
         (res, ref) = simple_secret
 
@@ -106,3 +117,48 @@ class TestSecret:
 
         expected_value = '{"env":"test"}'
         secretsmanager_validator.assert_secret_value(secret_name, expected_value)
+
+    @pytest.mark.parametrize(
+        "simple_secret",
+        [
+            {
+                "name": "tag-secret",
+            },
+        ],
+        indirect=True,
+    )
+    def test_tag_update(self, secretsmanager_client, simple_secret):
+        (res, ref) = simple_secret
+
+        time.sleep(5)
+
+        cr = k8s.get_resource(ref)
+        assert cr is not None
+        assert 'spec' in cr
+        assert 'name' in cr["spec"]
+        assert 'arn' in cr['status']['ackResourceMetadata']
+
+        secret_name = cr['spec']['name']
+        secretsmanager_validator = SecretsManagerValidator(secretsmanager_client)
+        expect_tags = {
+            "key1": "value1",
+        }
+        secretsmanager_validator.assert_tags(secret_name, expect_tags)
+
+        # Update the tags
+        new_tags = [
+            {"key": "key1", "value": "new_value_1"},
+            {"key": "key2", "value": "value2"},
+        ]
+        cr["spec"]["tags"] = new_tags
+
+        k8s.patch_custom_resource(ref, cr)
+        time.sleep(UPDATE_WAIT_AFTER_SECONDS)
+        
+
+        # Check that the tags were updated
+        expect_tags = {
+            "key1": "new_value_1",
+            "key2": "value2"
+        }
+        secretsmanager_validator.assert_tags(secret_name, expect_tags)
