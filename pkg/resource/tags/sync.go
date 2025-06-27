@@ -40,8 +40,8 @@ func SyncResourceTags(
 	client tagsClient,
 	mr metricsRecorder,
 	resourceARN string,
-	latestTags []*svcapitypes.Tag,
 	desiredTags []*svcapitypes.Tag,
+	latestTags []*svcapitypes.Tag,
 ) error {
 
 	var err error

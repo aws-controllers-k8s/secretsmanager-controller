@@ -1,8 +1,8 @@
 if delta.DifferentAt("Spec.Tags") {
     err := rm.syncTags(
         ctx,
-        latest,
         desired,
+        latest,
     )
     if err != nil {
         return nil, err
