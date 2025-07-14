@@ -16,6 +16,10 @@ package secret
 import (
 	"context"
 
+	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
+	svcsdk "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+
 	"github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource/tags"
 )
 
@@ -33,4 +37,33 @@ func (rm *resourceManager) syncTags(
 		desired.ko.Spec.Tags,
 		latest.ko.Spec.Tags,
 	)
+}
+
+func (rm *resourceManager) getSecretID(
+	ctx context.Context,
+	r *resource,
+) (id *string, err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.getSecretID")
+	defer func() {
+		exit(err)
+	}()
+
+	// although spec.name is a required field, during `adopt`,
+	// user might provide an empty name and only populate the status.id
+	if r.ko.Spec.Name == nil {
+		return nil, nil
+	}
+
+	resp, err := rm.sdkapi.ListSecrets(ctx, &svcsdk.ListSecretsInput{Filters: []svcsdktypes.Filter{{Key: "name", Values: []string{*r.ko.Spec.Name}}}})
+	if err != nil {
+		return nil, err
+	}
+
+	if resp == nil || len(resp.SecretList) == 0 {
+		return nil, nil
+	}
+
+	return resp.SecretList[0].ARN, nil
+
 }
