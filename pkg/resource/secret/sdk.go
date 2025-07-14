@@ -63,6 +63,13 @@ func (rm *resourceManager) sdkFind(
 	defer func() {
 		exit(err)
 	}()
+	if rm.requiredFieldsMissingFromReadOneInput(r) {
+		r.ko.Status.ID, err = rm.getSecretID(ctx, r)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// If any required fields in the input shape are missing, AWS resource is
 	// not created yet. Return NotFound here to indicate to callers that the
 	// resource isn't yet created.
