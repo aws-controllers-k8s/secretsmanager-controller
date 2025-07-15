@@ -64,7 +64,7 @@ func (rm *resourceManager) sdkFind(
 		exit(err)
 	}()
 	if rm.requiredFieldsMissingFromReadOneInput(r) {
-		err = rm.attemptFindingByName(ctx, r)
+		r.ko.Status.ID, err = rm.getSecretID(ctx, r)
 		if err != nil {
 			return nil, err
 		}
