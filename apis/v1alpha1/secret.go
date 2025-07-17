@@ -42,7 +42,8 @@ type SecretSpec struct {
 	// If the secret is in a different Amazon Web Services account from the credentials
 	// calling the API, then you can't use aws/secretsmanager to encrypt the secret,
 	// and you must create and use a customer managed KMS key.
-	KMSKeyID *string `json:"kmsKeyID,omitempty"`
+	KMSKeyID  *string                                  `json:"kmsKeyID,omitempty"`
+	KMSKeyRef *ackv1alpha1.AWSResourceReferenceWrapper `json:"kmsKeyRef,omitempty"`
 	// The name of the new secret.
 	//
 	// The secret name can contain ASCII letters, numbers, and the following characters:
