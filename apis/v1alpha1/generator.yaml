@@ -24,6 +24,11 @@ resources:
         is_immutable: true
       SecretString:
         is_secret: true
+      KmsKeyId:
+        references:
+          resource: Key
+          service_name: kms
+          path: Status.KeyID
     exceptions:
       errors:
         404:
