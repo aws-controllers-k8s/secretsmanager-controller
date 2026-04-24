@@ -55,15 +55,35 @@ func (rm *resourceManager) getSecretID(
 		return nil, nil
 	}
 
-	resp, err := rm.sdkapi.ListSecrets(ctx, &svcsdk.ListSecretsInput{Filters: []svcsdktypes.Filter{{Key: "name", Values: []string{*r.ko.Spec.Name}}}})
-	if err != nil {
-		return nil, err
+	// The AWS Secrets Manager `ListSecrets` filter with key "name" is a
+	// prefix match (case-insensitive) rather than an exact match. Iterating
+	// over all pages and keeping only the entry whose Name is strictly equal
+	// to Spec.Name prevents adopting an unrelated secret whose name happens
+	// to start with the same prefix (e.g. Spec.Name="dev/app" silently
+	// adopting the existing AWS secret "dev/app-service").
+	input := &svcsdk.ListSecretsInput{
+		Filters: []svcsdktypes.Filter{{
+			Key:    "name",
+			Values: []string{*r.ko.Spec.Name},
+		}},
 	}
 
-	if resp == nil || len(resp.SecretList) == 0 {
-		return nil, nil
+	for {
+		resp, err := rm.sdkapi.ListSecrets(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		if resp == nil {
+			return nil, nil
+		}
+		for _, s := range resp.SecretList {
+			if s.Name != nil && *s.Name == *r.ko.Spec.Name {
+				return s.ARN, nil
+			}
+		}
+		if resp.NextToken == nil || *resp.NextToken == "" {
+			return nil, nil
+		}
+		input.NextToken = resp.NextToken
 	}
-
-	return resp.SecretList[0].ARN, nil
-
 }
