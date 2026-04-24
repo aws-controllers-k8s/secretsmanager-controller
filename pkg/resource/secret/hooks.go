@@ -55,12 +55,6 @@ func (rm *resourceManager) getSecretID(
 		return nil, nil
 	}
 
-	// The AWS Secrets Manager `ListSecrets` filter with key "name" is a
-	// prefix match (case-insensitive) rather than an exact match. Iterating
-	// over all pages and keeping only the entry whose Name is strictly equal
-	// to Spec.Name prevents adopting an unrelated secret whose name happens
-	// to start with the same prefix (e.g. Spec.Name="dev/app" silently
-	// adopting the existing AWS secret "dev/app-service").
 	input := &svcsdk.ListSecretsInput{
 		Filters: []svcsdktypes.Filter{{
 			Key:    "name",
