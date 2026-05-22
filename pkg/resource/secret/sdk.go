@@ -267,6 +267,9 @@ func (rm *resourceManager) sdkCreate(
 	}
 
 	rm.setStatusDefaults(ko)
+	r := &resource{ko}
+	setLastAppliedSecretReferenceAnnotation(r)
+
 	return &resource{ko}, nil
 }
 
@@ -392,6 +395,9 @@ func (rm *resourceManager) sdkUpdate(
 	}
 
 	rm.setStatusDefaults(ko)
+	r := &resource{ko}
+	setLastAppliedSecretReferenceAnnotation(r)
+
 	return &resource{ko}, nil
 }
 

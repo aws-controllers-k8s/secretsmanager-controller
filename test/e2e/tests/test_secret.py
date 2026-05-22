@@ -122,6 +122,57 @@ class TestSecret:
         "simple_secret",
         [
             {
+                "name": "secret-string-update",
+            },
+        ],
+        indirect=True,
+    )
+    def test_secret_string_update(self, secretsmanager_client, k8s_secret, simple_secret):
+        (res, ref) = simple_secret
+
+        time.sleep(5)
+
+        cr = k8s.get_resource(ref)
+        assert cr is not None
+        assert 'spec' in cr
+        assert 'name' in cr["spec"]
+
+        secret_name = cr['spec']['name']
+        secretsmanager_validator = SecretsManagerValidator(secretsmanager_client)
+
+        # Verify initial secret value
+        expected_value = '{"env":"test"}'
+        secretsmanager_validator.assert_secret_value(secret_name, expected_value)
+
+        # Create a new K8s secret with an updated value
+        new_secret_val = '{"env":"production"}'
+        new_secret = k8s_secret(
+            "default",
+            random_suffix_name("updated-secret", 24),
+            "secret_str_key",
+            new_secret_val,
+        )
+
+        # Update the CR's secretString reference to point to the new K8s secret
+        updates = {
+            "spec": {
+                "secretString": {
+                    "name": new_secret.name,
+                    "namespace": new_secret.ns,
+                    "key": new_secret.key,
+                },
+            },
+        }
+        k8s.patch_custom_resource(ref, updates)
+        time.sleep(UPDATE_WAIT_AFTER_SECONDS)
+
+        # Verify the secret value was updated in AWS
+        secretsmanager_validator.assert_secret_value(secret_name, new_secret_val)
+
+    @pytest.mark.parametrize(
+        "simple_secret",
+        [
+            {
                 "name": "tag-secret",
             },
         ],

@@ -15,13 +15,54 @@ package secret
 
 import (
 	"context"
+	"fmt"
 
+	ackv1alpha1 "github.com/aws-controllers-k8s/runtime/apis/core/v1alpha1"
+	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 
+	svcapitypes "github.com/aws-controllers-k8s/secretsmanager-controller/apis/v1alpha1"
 	"github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource/tags"
 )
+
+func customPreCompare(delta *ackcompare.Delta, a, b *resource) {
+	compareSecretReferenceChanges(delta, a, b)
+}
+
+func getLastAppliedSecretReferenceString(r *ackv1alpha1.SecretKeyReference) string {
+	if r == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s.%s", r.Namespace, r.Name, r.Key)
+}
+
+func setLastAppliedSecretReferenceAnnotation(r *resource) {
+	if r.ko.Annotations == nil {
+		r.ko.Annotations = make(map[string]string)
+	}
+	r.ko.Annotations[svcapitypes.LastAppliedSecretAnnotation] = getLastAppliedSecretReferenceString(r.ko.Spec.SecretString)
+}
+
+func getLastAppliedSecretReferenceAnnotation(r *resource) string {
+	if r.ko.Annotations == nil {
+		return ""
+	}
+	return r.ko.Annotations[svcapitypes.LastAppliedSecretAnnotation]
+}
+
+func compareSecretReferenceChanges(
+	delta *ackcompare.Delta,
+	a *resource,
+	b *resource,
+) {
+	oldRef := getLastAppliedSecretReferenceAnnotation(a)
+	newRef := getLastAppliedSecretReferenceString(a.ko.Spec.SecretString)
+	if oldRef != newRef {
+		delta.Add("Spec.SecretString", oldRef, newRef)
+	}
+}
 
 // syncTags keeps the resource's tags in sync.
 func (rm *resourceManager) syncTags(
