@@ -5,6 +5,8 @@ ignore:
 resources:
   Secret:
     hooks:
+      delta_pre_compare:
+        code: customPreCompare(delta, a, b)
       sdk_create_pre_set_output:
         template_path: hooks/secret/sdk_create_pre_set_output.go.tpl
       sdk_read_one_pre_set_output:
@@ -29,6 +31,28 @@ resources:
           resource: Key
           service_name: kms
           path: Status.KeyID
+      RotationEnabled:
+        from:
+          operation: DescribeSecret
+          path: RotationEnabled
+        compare:
+          is_ignored: true
+      RotationLambdaARN:
+        from:
+          operation: DescribeSecret
+          path: RotationLambdaARN
+        references:
+          resource: Function
+          service_name: lambda
+          path: Status.ACKResourceMetadata.ARN
+        compare:
+          is_ignored: true
+      RotationRules:
+        from:
+          operation: DescribeSecret
+          path: RotationRules
+        compare:
+          is_ignored: true
     exceptions:
       errors:
         404:

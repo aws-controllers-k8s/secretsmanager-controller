@@ -147,6 +147,31 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Status.ReplicationStatus = nil
 	}
+	if resp.RotationEnabled != nil {
+		ko.Spec.RotationEnabled = resp.RotationEnabled
+	} else {
+		ko.Spec.RotationEnabled = nil
+	}
+	if resp.RotationLambdaARN != nil {
+		ko.Spec.RotationLambdaARN = resp.RotationLambdaARN
+	} else {
+		ko.Spec.RotationLambdaARN = nil
+	}
+	if resp.RotationRules != nil {
+		f15 := &svcapitypes.RotationRulesType{}
+		if resp.RotationRules.AutomaticallyAfterDays != nil {
+			f15.AutomaticallyAfterDays = resp.RotationRules.AutomaticallyAfterDays
+		}
+		if resp.RotationRules.Duration != nil {
+			f15.Duration = resp.RotationRules.Duration
+		}
+		if resp.RotationRules.ScheduleExpression != nil {
+			f15.ScheduleExpression = resp.RotationRules.ScheduleExpression
+		}
+		ko.Spec.RotationRules = f15
+	} else {
+		ko.Spec.RotationRules = nil
+	}
 	if resp.Tags != nil {
 		f16 := []*svcapitypes.Tag{}
 		for _, f16iter := range resp.Tags {
@@ -354,9 +379,20 @@ func (rm *resourceManager) sdkUpdate(
 			return nil, err
 		}
 	}
-	if !delta.DifferentExcept("Spec.Tags") {
+	if delta.DifferentAt("Spec.RotationEnabled") || delta.DifferentAt("Spec.RotationLambdaARN") || delta.DifferentAt("Spec.RotationRules") {
+		err := rm.syncRotation(
+			ctx,
+			desired,
+			latest,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if !delta.DifferentExcept("Spec.Tags", "Spec.RotationEnabled", "Spec.RotationLambdaARN", "Spec.RotationRules") {
 		return desired, nil
 	}
+
 	input, err := rm.newUpdateRequestPayload(ctx, desired, delta)
 	if err != nil {
 		return nil, err
