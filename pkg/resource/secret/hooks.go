@@ -15,13 +15,110 @@ package secret
 
 import (
 	"context"
+	"fmt"
 
+	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 
 	"github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource/tags"
 )
+
+func customPreCompare(delta *ackcompare.Delta, a, b *resource) {
+	compareRotationChanges(delta, a, b)
+}
+
+func compareRotationChanges(delta *ackcompare.Delta, a, b *resource) {
+	// a = desired, b = latest
+	// Only fire delta if the user explicitly set the field (desired != nil)
+	if a.ko.Spec.RotationEnabled != nil {
+		if ackcompare.HasNilDifference(a.ko.Spec.RotationEnabled, b.ko.Spec.RotationEnabled) {
+			delta.Add("Spec.RotationEnabled", a.ko.Spec.RotationEnabled, b.ko.Spec.RotationEnabled)
+		} else if *a.ko.Spec.RotationEnabled != *b.ko.Spec.RotationEnabled {
+			delta.Add("Spec.RotationEnabled", a.ko.Spec.RotationEnabled, b.ko.Spec.RotationEnabled)
+		}
+	}
+	if a.ko.Spec.RotationLambdaARN != nil {
+		if ackcompare.HasNilDifference(a.ko.Spec.RotationLambdaARN, b.ko.Spec.RotationLambdaARN) {
+			delta.Add("Spec.RotationLambdaARN", a.ko.Spec.RotationLambdaARN, b.ko.Spec.RotationLambdaARN)
+		} else if *a.ko.Spec.RotationLambdaARN != *b.ko.Spec.RotationLambdaARN {
+			delta.Add("Spec.RotationLambdaARN", a.ko.Spec.RotationLambdaARN, b.ko.Spec.RotationLambdaARN)
+		}
+	}
+	if a.ko.Spec.RotationRules != nil {
+		if b.ko.Spec.RotationRules == nil {
+			delta.Add("Spec.RotationRules", a.ko.Spec.RotationRules, b.ko.Spec.RotationRules)
+		} else {
+			if ackcompare.HasNilDifference(a.ko.Spec.RotationRules.AutomaticallyAfterDays, b.ko.Spec.RotationRules.AutomaticallyAfterDays) ||
+				(a.ko.Spec.RotationRules.AutomaticallyAfterDays != nil && *a.ko.Spec.RotationRules.AutomaticallyAfterDays != *b.ko.Spec.RotationRules.AutomaticallyAfterDays) {
+				delta.Add("Spec.RotationRules", a.ko.Spec.RotationRules, b.ko.Spec.RotationRules)
+			} else if ackcompare.HasNilDifference(a.ko.Spec.RotationRules.Duration, b.ko.Spec.RotationRules.Duration) ||
+				(a.ko.Spec.RotationRules.Duration != nil && *a.ko.Spec.RotationRules.Duration != *b.ko.Spec.RotationRules.Duration) {
+				delta.Add("Spec.RotationRules", a.ko.Spec.RotationRules, b.ko.Spec.RotationRules)
+			} else if ackcompare.HasNilDifference(a.ko.Spec.RotationRules.ScheduleExpression, b.ko.Spec.RotationRules.ScheduleExpression) ||
+				(a.ko.Spec.RotationRules.ScheduleExpression != nil && *a.ko.Spec.RotationRules.ScheduleExpression != *b.ko.Spec.RotationRules.ScheduleExpression) {
+				delta.Add("Spec.RotationRules", a.ko.Spec.RotationRules, b.ko.Spec.RotationRules)
+			}
+		}
+	}
+}
+
+func (rm *resourceManager) syncRotation(
+	ctx context.Context,
+	desired *resource,
+	latest *resource,
+) (err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.syncRotation")
+	defer func() {
+		exit(err)
+	}()
+
+	secretID := latest.ko.Status.ID
+	if secretID == nil {
+		return fmt.Errorf("secret ARN not available")
+	}
+
+	desiredEnabled := desired.ko.Spec.RotationEnabled != nil && *desired.ko.Spec.RotationEnabled
+	latestEnabled := latest.ko.Spec.RotationEnabled != nil && *latest.ko.Spec.RotationEnabled
+
+	if !desiredEnabled && latestEnabled {
+		_, err = rm.sdkapi.CancelRotateSecret(ctx, &svcsdk.CancelRotateSecretInput{
+			SecretId: secretID,
+		})
+		rm.metrics.RecordAPICall("UPDATE", "CancelRotateSecret", err)
+		return err
+	}
+
+	if desiredEnabled {
+		rotateImmediately := false
+		input := &svcsdk.RotateSecretInput{
+			SecretId:          secretID,
+			RotateImmediately: &rotateImmediately,
+		}
+		if desired.ko.Spec.RotationLambdaARN != nil {
+			input.RotationLambdaARN = desired.ko.Spec.RotationLambdaARN
+		}
+		if desired.ko.Spec.RotationRules != nil {
+			input.RotationRules = &svcsdktypes.RotationRulesType{}
+			if desired.ko.Spec.RotationRules.AutomaticallyAfterDays != nil {
+				input.RotationRules.AutomaticallyAfterDays = desired.ko.Spec.RotationRules.AutomaticallyAfterDays
+			}
+			if desired.ko.Spec.RotationRules.Duration != nil {
+				input.RotationRules.Duration = desired.ko.Spec.RotationRules.Duration
+			}
+			if desired.ko.Spec.RotationRules.ScheduleExpression != nil {
+				input.RotationRules.ScheduleExpression = desired.ko.Spec.RotationRules.ScheduleExpression
+			}
+		}
+		_, err = rm.sdkapi.RotateSecret(ctx, input)
+		rm.metrics.RecordAPICall("UPDATE", "RotateSecret", err)
+		return err
+	}
+
+	return nil
+}
 
 // syncTags keeps the resource's tags in sync.
 func (rm *resourceManager) syncTags(

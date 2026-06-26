@@ -384,6 +384,26 @@ func (in *SecretSpec) DeepCopyInto(out *SecretSpec) {
 			}
 		}
 	}
+	if in.RotationEnabled != nil {
+		in, out := &in.RotationEnabled, &out.RotationEnabled
+		*out = new(bool)
+		**out = **in
+	}
+	if in.RotationLambdaARN != nil {
+		in, out := &in.RotationLambdaARN, &out.RotationLambdaARN
+		*out = new(string)
+		**out = **in
+	}
+	if in.RotationLambdaRef != nil {
+		in, out := &in.RotationLambdaRef, &out.RotationLambdaRef
+		*out = new(corev1alpha1.AWSResourceReferenceWrapper)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.RotationRules != nil {
+		in, out := &in.RotationRules, &out.RotationRules
+		*out = new(RotationRulesType)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SecretString != nil {
 		in, out := &in.SecretString, &out.SecretString
 		*out = new(corev1alpha1.SecretKeyReference)

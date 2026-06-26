@@ -58,6 +58,20 @@ type SecretSpec struct {
 	Name *string `json:"name"`
 	// A list of Regions and KMS keys to replicate secrets.
 	ReplicaRegions []*ReplicaRegionType `json:"replicaRegions,omitempty"`
+	// Specifies whether automatic rotation is turned on for this secret. If the
+	// secret has never been configured for rotation, Secrets Manager returns null.
+	//
+	// To turn on rotation, use RotateSecret. To turn off rotation, use CancelRotateSecret.
+	RotationEnabled *bool `json:"rotationEnabled,omitempty"`
+	// The ARN of the Lambda function that Secrets Manager invokes to rotate the
+	// secret.
+	RotationLambdaARN *string                                  `json:"rotationLambdaARN,omitempty"`
+	RotationLambdaRef *ackv1alpha1.AWSResourceReferenceWrapper `json:"rotationLambdaRef,omitempty"`
+	// The rotation schedule and Lambda function for this secret. If the secret
+	// previously had rotation turned on, but it is now turned off, this field shows
+	// the previous rotation schedule and rotation function. If the secret never
+	// had rotation turned on, this field is omitted.
+	RotationRules *RotationRulesType `json:"rotationRules,omitempty"`
 	// The text data to encrypt and store in this new version of the secret. We
 	// recommend you use a JSON structure of key/value pairs for your secret value.
 	//
