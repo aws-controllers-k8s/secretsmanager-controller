@@ -373,6 +373,11 @@ func (in *SecretSpec) DeepCopyInto(out *SecretSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.RecoveryWindowInDays != nil {
+		in, out := &in.RecoveryWindowInDays, &out.RecoveryWindowInDays
+		*out = new(int64)
+		**out = **in
+	}
 	if in.ReplicaRegions != nil {
 		in, out := &in.ReplicaRegions, &out.ReplicaRegions
 		*out = make([]*ReplicaRegionType, len(*in))
