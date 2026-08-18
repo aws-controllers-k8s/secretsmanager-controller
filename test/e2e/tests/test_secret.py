@@ -27,8 +27,14 @@ from e2e.tests.helper import SecretsManagerValidator
 RESOURCE_KIND = "Secret"
 RESOURCE_PLURAL = "secrets"
 
+CREATE_WAIT_AFTER_SECONDS = 5
 DELETE_WAIT_AFTER_SECONDS = 5
 UPDATE_WAIT_AFTER_SECONDS = 5
+
+# Deletion without a recovery window happens in a background process, so the
+# secret can linger briefly after the DeleteSecret call returns.
+FORCE_DELETE_POLL_SECONDS = 5
+FORCE_DELETE_MAX_ATTEMPTS = 12
 
 
 @pytest.fixture(scope="module")
@@ -117,6 +123,84 @@ class TestSecret:
 
         expected_value = '{"env":"test"}'
         secretsmanager_validator.assert_secret_value(secret_name, expected_value)
+
+    def test_delete_without_recovery_window(self, secretsmanager_client, k8s_secret):
+        """A zero recovery window deletes the secret outright, so its name
+        becomes available again instead of being held for 30 days.
+        """
+        secret = k8s_secret(
+            "default", random_suffix_name("no-recovery-str", 24),
+            "secret_str_key", '{"env":"test"}',
+        )
+        resource_name = random_suffix_name("no-recovery-secret", 24)
+
+        replacements = REPLACEMENT_VALUES.copy()
+        replacements["SECRET_NAME"] = resource_name
+        replacements["K8S_SECRET_NAMESPACE"] = secret.ns
+        replacements["K8S_SECRET_NAME"] = secret.name
+        replacements["K8S_SECRET_KEY"] = secret.key
+
+        resource_data = load_secretsmanager_resource(
+            "secret",
+            additional_replacements=replacements,
+        )
+        resource_data["spec"]["recoveryWindowInDays"] = 0
+
+        ref = k8s.CustomResourceReference(
+            CRD_GROUP, CRD_VERSION, RESOURCE_PLURAL,
+            resource_name, namespace="default",
+        )
+
+        k8s.create_custom_resource(ref, resource_data)
+        k8s.wait_resource_consumed_by_controller(ref)
+        time.sleep(CREATE_WAIT_AFTER_SECONDS)
+
+        cr = k8s.get_resource(ref)
+        assert cr is not None
+        assert 'arn' in cr['status']['ackResourceMetadata']
+
+        _, deleted = k8s.delete_custom_resource(
+            ref,
+            period_length=DELETE_WAIT_AFTER_SECONDS,
+        )
+        assert deleted
+
+        # Secrets Manager performs the deletion in an asynchronous background
+        # process, so poll rather than expecting the secret to be gone at once.
+        self._assert_secret_gone(secretsmanager_client, resource_name)
+
+        # The name is free, so the same secret can be recreated.
+        k8s.create_custom_resource(ref, resource_data)
+        k8s.wait_resource_consumed_by_controller(ref)
+        time.sleep(CREATE_WAIT_AFTER_SECONDS)
+
+        cr = k8s.get_resource(ref)
+        assert cr is not None
+        assert 'arn' in cr['status']['ackResourceMetadata']
+
+        _, deleted = k8s.delete_custom_resource(
+            ref,
+            period_length=DELETE_WAIT_AFTER_SECONDS,
+        )
+        assert deleted
+
+    def _assert_secret_gone(self, secretsmanager_client, secret_name):
+        for _ in range(FORCE_DELETE_MAX_ATTEMPTS):
+            try:
+                response = secretsmanager_client.describe_secret(SecretId=secret_name)
+            except secretsmanager_client.exceptions.ResourceNotFoundException:
+                return
+            # A DeletedDate means a recovery window was applied, which is the
+            # behaviour a zero window is meant to bypass.
+            assert 'DeletedDate' not in response, (
+                f"secret {secret_name} was scheduled for deletion instead of "
+                "being deleted without a recovery window"
+            )
+            time.sleep(FORCE_DELETE_POLL_SECONDS)
+        pytest.fail(
+            f"secret {secret_name} still exists after "
+            f"{FORCE_DELETE_MAX_ATTEMPTS * FORCE_DELETE_POLL_SECONDS} seconds"
+        )
 
     @pytest.mark.parametrize(
         "simple_secret",

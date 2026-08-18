@@ -13,7 +13,19 @@ resources:
         template_path: hooks/secret/sdk_update_pre_build_request.go.tpl
       sdk_read_one_pre_build_request:
         template_path: hooks/secret/sdk_read_one_pre_build_request.go.tpl
+      sdk_delete_post_build_request:
+        template_path: hooks/secret/sdk_delete_post_build_request.go.tpl
     fields:
+      # Only present on the DeleteSecret input shape, so it is not picked up
+      # from the CreateSecret input like the other spec fields.
+      RecoveryWindowInDays:
+        from:
+          operation: DeleteSecret
+          path: RecoveryWindowInDays
+        compare:
+          # DescribeSecret never returns this value, so comparing it against
+          # the latest state would report a permanent difference.
+          is_ignored: true
       ID:
         from:
           operation: DescribeSecret
