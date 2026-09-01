@@ -17,6 +17,7 @@
 import logging
 import pytest
 import time
+from datetime import datetime, timedelta, timezone
 from e2e.fixtures import k8s_secret
 from acktest.k8s import resource as k8s
 from acktest.resources import random_suffix_name
@@ -31,10 +32,9 @@ CREATE_WAIT_AFTER_SECONDS = 5
 DELETE_WAIT_AFTER_SECONDS = 5
 UPDATE_WAIT_AFTER_SECONDS = 5
 
-# Deletion without a recovery window happens in a background process, so the
-# secret can linger briefly after the DeleteSecret call returns.
-FORCE_DELETE_POLL_SECONDS = 5
-FORCE_DELETE_MAX_ATTEMPTS = 12
+# Comfortably shorter than the 7 day minimum recovery window, so a windowed
+# deletion can never be mistaken for a force deletion.
+FORCE_DELETE_MAX_SCHEDULING_DELAY = timedelta(hours=1)
 
 
 @pytest.fixture(scope="module")
@@ -125,8 +125,8 @@ class TestSecret:
         secretsmanager_validator.assert_secret_value(secret_name, expected_value)
 
     def test_delete_without_recovery_window(self, secretsmanager_client, k8s_secret):
-        """A zero recovery window deletes the secret outright, so its name
-        becomes available again instead of being held for 30 days.
+        """A zero recovery window force deletes the secret, so Secrets Manager
+        schedules the purge immediately instead of holding it for 30 days.
         """
         secret = k8s_secret(
             "default", random_suffix_name("no-recovery-str", 24),
@@ -165,41 +165,33 @@ class TestSecret:
         )
         assert deleted
 
-        # Secrets Manager performs the deletion in an asynchronous background
-        # process, so poll rather than expecting the secret to be gone at once.
-        self._assert_secret_gone(secretsmanager_client, resource_name)
-
-        # The name is free, so the same secret can be recreated.
-        k8s.create_custom_resource(ref, resource_data)
-        k8s.wait_resource_consumed_by_controller(ref)
-        time.sleep(CREATE_WAIT_AFTER_SECONDS)
-
-        cr = k8s.get_resource(ref)
-        assert cr is not None
-        assert 'arn' in cr['status']['ackResourceMetadata']
-
-        _, deleted = k8s.delete_custom_resource(
-            ref,
-            period_length=DELETE_WAIT_AFTER_SECONDS,
+        self._assert_deleted_without_recovery_window(
+            secretsmanager_client, resource_name,
         )
-        assert deleted
 
-    def _assert_secret_gone(self, secretsmanager_client, secret_name):
-        for _ in range(FORCE_DELETE_MAX_ATTEMPTS):
-            try:
-                response = secretsmanager_client.describe_secret(SecretId=secret_name)
-            except secretsmanager_client.exceptions.ResourceNotFoundException:
-                return
-            # A DeletedDate means a recovery window was applied, which is the
-            # behaviour a zero window is meant to bypass.
-            assert 'DeletedDate' not in response, (
-                f"secret {secret_name} was scheduled for deletion instead of "
-                "being deleted without a recovery window"
-            )
-            time.sleep(FORCE_DELETE_POLL_SECONDS)
-        pytest.fail(
-            f"secret {secret_name} still exists after "
-            f"{FORCE_DELETE_MAX_ATTEMPTS * FORCE_DELETE_POLL_SECONDS} seconds"
+    def _assert_deleted_without_recovery_window(
+        self, secretsmanager_client, secret_name,
+    ):
+        # Secrets Manager purges a force deleted secret in a background process
+        # with no timing guarantee, so the secret usually still describes fine
+        # here. DeletedDate carries the answer: it is the delete request time
+        # plus the recovery window, making it ~now for a force delete and at
+        # least 7 days out for a windowed one.
+        try:
+            response = secretsmanager_client.describe_secret(SecretId=secret_name)
+        except secretsmanager_client.exceptions.ResourceNotFoundException:
+            # Already purged, which only a force delete can do this quickly.
+            return
+
+        deleted_date = response.get("DeletedDate")
+        assert deleted_date is not None, (
+            f"secret {secret_name} was not deleted at all"
+        )
+
+        time_until_purge = deleted_date - datetime.now(timezone.utc)
+        assert time_until_purge < FORCE_DELETE_MAX_SCHEDULING_DELAY, (
+            f"secret {secret_name} is scheduled for deletion at {deleted_date}, "
+            "so a recovery window was applied instead of a force delete"
         )
 
     @pytest.mark.parametrize(
