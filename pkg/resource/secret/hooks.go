@@ -15,9 +15,7 @@ package secret
 
 import (
 	"context"
-	"fmt"
 
-	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
@@ -25,15 +23,9 @@ import (
 	"github.com/aws-controllers-k8s/secretsmanager-controller/pkg/resource/tags"
 )
 
-const (
-	// forceDeleteRecoveryWindow is the Spec.RecoveryWindowInDays value that
-	// requests deletion without any recovery window.
-	forceDeleteRecoveryWindow = 0
-	// The range Secrets Manager accepts for the DeleteSecret
-	// RecoveryWindowInDays parameter.
-	minRecoveryWindowInDays = 7
-	maxRecoveryWindowInDays = 30
-)
+// forceDeleteRecoveryWindow is the Spec.RecoveryWindowInDays value that
+// requests deletion without any recovery window.
+const forceDeleteRecoveryWindow = 0
 
 // syncTags keeps the resource's tags in sync.
 func (rm *resourceManager) syncTags(
@@ -57,30 +49,19 @@ func (rm *resourceManager) syncTags(
 // Secrets Manager has no zero day recovery window: immediate deletion is
 // requested through ForceDeleteWithoutRecovery instead, and the API rejects a
 // call that carries both parameters.
-func setDeleteSecretInput(r *resource, input *svcsdk.DeleteSecretInput) error {
+//
+// Values outside the window Secrets Manager accepts are left for the API to
+// reject, so the controller does not drift from the service's bounds.
+func setDeleteSecretInput(r *resource, input *svcsdk.DeleteSecretInput) {
 	if r.ko.Spec.RecoveryWindowInDays == nil {
-		return nil
+		return
 	}
 
-	recoveryWindow := *r.ko.Spec.RecoveryWindowInDays
-
-	if recoveryWindow == forceDeleteRecoveryWindow {
+	if *r.ko.Spec.RecoveryWindowInDays == forceDeleteRecoveryWindow {
 		forceDelete := true
 		input.ForceDeleteWithoutRecovery = &forceDelete
 		input.RecoveryWindowInDays = nil
-		return nil
 	}
-
-	if recoveryWindow < minRecoveryWindowInDays || recoveryWindow > maxRecoveryWindowInDays {
-		// The value comes from the user, so requeueing won't make the call succeed.
-		return ackerr.NewTerminalError(fmt.Errorf(
-			"invalid Spec.RecoveryWindowInDays %d: expected %d, or a value from %d to %d",
-			recoveryWindow, forceDeleteRecoveryWindow,
-			minRecoveryWindowInDays, maxRecoveryWindowInDays,
-		))
-	}
-
-	return nil
 }
 
 func (rm *resourceManager) getSecretID(

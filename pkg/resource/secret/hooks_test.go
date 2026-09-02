@@ -14,10 +14,8 @@
 package secret
 
 import (
-	"errors"
 	"testing"
 
-	ackerr "github.com/aws-controllers-k8s/runtime/pkg/errors"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 
 	svcapitypes "github.com/aws-controllers-k8s/secretsmanager-controller/apis/v1alpha1"
@@ -52,14 +50,17 @@ func TestSetDeleteSecretInput(t *testing.T) {
 			wantForceDelete:      ptrTo(true),
 		},
 		{
-			name:                 "minimum recovery window is passed through",
+			name:                 "non zero window is passed through",
 			recoveryWindowInDays: ptrTo(int64(7)),
 			wantRecoveryWindow:   ptrTo(int64(7)),
 		},
 		{
-			name:                 "maximum recovery window is passed through",
-			recoveryWindowInDays: ptrTo(int64(30)),
-			wantRecoveryWindow:   ptrTo(int64(30)),
+			// Secrets Manager owns the accepted range, so an out of range
+			// value reaches the API and is rejected there rather than being
+			// caught by the controller.
+			name:                 "out of range window is still passed through",
+			recoveryWindowInDays: ptrTo(int64(31)),
+			wantRecoveryWindow:   ptrTo(int64(31)),
 		},
 	}
 
@@ -72,62 +73,11 @@ func TestSetDeleteSecretInput(t *testing.T) {
 				RecoveryWindowInDays: test.recoveryWindowInDays,
 			}
 
-			if err := setDeleteSecretInput(r, input); err != nil {
-				t.Fatalf("setDeleteSecretInput() returned unexpected error: %v", err)
-			}
+			setDeleteSecretInput(r, input)
 
 			assertBoolPtr(t, "input.ForceDeleteWithoutRecovery", input.ForceDeleteWithoutRecovery, test.wantForceDelete)
 			assertInt64Ptr(t, "input.RecoveryWindowInDays", input.RecoveryWindowInDays, test.wantRecoveryWindow)
 		})
-	}
-}
-
-// Secrets Manager accepts 0 or 7 through 30. Anything else would be rejected on
-// every reconcile, so it fails terminally instead of looping.
-func TestSetDeleteSecretInput_OutOfRangeIsTerminal(t *testing.T) {
-	tests := []struct {
-		name                 string
-		recoveryWindowInDays int64
-	}{
-		{name: "between zero and the minimum", recoveryWindowInDays: 6},
-		{name: "just above the maximum", recoveryWindowInDays: 31},
-		{name: "negative", recoveryWindowInDays: -1},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			r := secretWithRecoveryWindow(&test.recoveryWindowInDays)
-			input := &svcsdk.DeleteSecretInput{
-				RecoveryWindowInDays: &test.recoveryWindowInDays,
-			}
-
-			err := setDeleteSecretInput(r, input)
-			if err == nil {
-				t.Fatalf("setDeleteSecretInput() with recoveryWindowInDays=%d returned nil error, want an error", test.recoveryWindowInDays)
-			}
-			var terminalErr *ackerr.TerminalError
-			if !errors.As(err, &terminalErr) {
-				t.Errorf("setDeleteSecretInput() returned %T, want a *ackerr.TerminalError", err)
-			}
-		})
-	}
-}
-
-// The two parameters are mutually exclusive; sending both fails the API call.
-func TestSetDeleteSecretInput_ZeroDoesNotSendBothParameters(t *testing.T) {
-	zero := int64(0)
-	r := secretWithRecoveryWindow(&zero)
-	input := &svcsdk.DeleteSecretInput{RecoveryWindowInDays: &zero}
-
-	if err := setDeleteSecretInput(r, input); err != nil {
-		t.Fatalf("setDeleteSecretInput() returned unexpected error: %v", err)
-	}
-
-	if input.ForceDeleteWithoutRecovery == nil {
-		t.Fatal("input.ForceDeleteWithoutRecovery = nil, want true")
-	}
-	if input.RecoveryWindowInDays != nil {
-		t.Errorf("input.RecoveryWindowInDays = %d, want nil so it is omitted from the request", *input.RecoveryWindowInDays)
 	}
 }
 
@@ -140,9 +90,7 @@ func TestSetDeleteSecretInput_PreservesSecretID(t *testing.T) {
 		RecoveryWindowInDays: &zero,
 	}
 
-	if err := setDeleteSecretInput(r, input); err != nil {
-		t.Fatalf("setDeleteSecretInput() returned unexpected error: %v", err)
-	}
+	setDeleteSecretInput(r, input)
 
 	if input.SecretId == nil {
 		t.Fatal("input.SecretId = nil, want it preserved")

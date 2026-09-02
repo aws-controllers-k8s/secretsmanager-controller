@@ -1,0 +1,9 @@
+resources:
+  Secret:
+    fields:
+      RecoveryWindowInDays:
+        append: |
+          This field is only used when deleting the secret. In addition to the
+          7-to-30 day range above, ACK accepts 0 to request immediate deletion
+          without a recovery window (mapped to the DeleteSecret
+          ForceDeleteWithoutRecovery parameter).

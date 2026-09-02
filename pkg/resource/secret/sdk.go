@@ -440,10 +440,7 @@ func (rm *resourceManager) sdkDelete(
 	if err != nil {
 		return nil, err
 	}
-	err = setDeleteSecretInput(r, input)
-	if err != nil {
-		return nil, err
-	}
+	setDeleteSecretInput(r, input)
 
 	var resp *svcsdk.DeleteSecretOutput
 	_ = resp
