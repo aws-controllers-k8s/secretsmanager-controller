@@ -17,7 +17,6 @@
 import logging
 import pytest
 import time
-from datetime import datetime, timedelta, timezone
 from e2e.fixtures import k8s_secret
 from acktest.k8s import resource as k8s
 from acktest.resources import random_suffix_name
@@ -32,9 +31,12 @@ CREATE_WAIT_AFTER_SECONDS = 5
 DELETE_WAIT_AFTER_SECONDS = 5
 UPDATE_WAIT_AFTER_SECONDS = 5
 
-# Comfortably shorter than the 7 day minimum recovery window, so a windowed
-# deletion can never be mistaken for a force deletion.
-FORCE_DELETE_MAX_SCHEDULING_DELAY = timedelta(hours=1)
+# Secrets Manager purges a force deleted secret in a background process with no
+# timing guarantee. Observed at roughly ten seconds, so this leaves headroom
+# while staying far below the 7 day minimum recovery window a windowed delete
+# would hold the secret for.
+FORCE_DELETE_PURGE_TIMEOUT_SECONDS = 60
+FORCE_DELETE_POLL_INTERVAL_SECONDS = 5
 
 
 @pytest.fixture(scope="module")
@@ -172,26 +174,23 @@ class TestSecret:
     def _assert_deleted_without_recovery_window(
         self, secretsmanager_client, secret_name,
     ):
-        # Secrets Manager purges a force deleted secret in a background process
-        # with no timing guarantee, so the secret usually still describes fine
-        # here. DeletedDate carries the answer: it is the delete request time
-        # plus the recovery window, making it ~now for a force delete and at
-        # least 7 days out for a windowed one.
-        try:
-            response = secretsmanager_client.describe_secret(SecretId=secret_name)
-        except secretsmanager_client.exceptions.ResourceNotFoundException:
-            # Already purged, which only a force delete can do this quickly.
-            return
+        # DescribeSecret reports DeletedDate as the time DeleteSecret was called,
+        # not the scheduled purge, so it reads the same for a windowed delete as
+        # for a forced one. Being purged outright is what distinguishes a force
+        # delete, so poll until the secret is gone: a windowed delete would keep
+        # it describable for at least the 7 day minimum window.
+        deadline = time.monotonic() + FORCE_DELETE_PURGE_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            try:
+                secretsmanager_client.describe_secret(SecretId=secret_name)
+            except secretsmanager_client.exceptions.ResourceNotFoundException:
+                return
+            time.sleep(FORCE_DELETE_POLL_INTERVAL_SECONDS)
 
-        deleted_date = response.get("DeletedDate")
-        assert deleted_date is not None, (
-            f"secret {secret_name} was not deleted at all"
-        )
-
-        time_until_purge = deleted_date - datetime.now(timezone.utc)
-        assert time_until_purge < FORCE_DELETE_MAX_SCHEDULING_DELAY, (
-            f"secret {secret_name} is scheduled for deletion at {deleted_date}, "
-            "so a recovery window was applied instead of a force delete"
+        pytest.fail(
+            f"secret {secret_name} still exists "
+            f"{FORCE_DELETE_PURGE_TIMEOUT_SECONDS}s after deletion, so a "
+            "recovery window may have been applied or the secret was not force deleted"
         )
 
     @pytest.mark.parametrize(
