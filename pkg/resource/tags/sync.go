@@ -15,9 +15,12 @@ package tags
 
 import (
 	"context"
+	"maps"
+	"slices"
 
+	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
-	ackutil "github.com/aws-controllers-k8s/runtime/pkg/util"
+	acktags "github.com/aws-controllers-k8s/runtime/pkg/tags"
 	svcsdk "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	svcsdktypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 
@@ -51,14 +54,16 @@ func SyncResourceTags(
 		exit(err)
 	}()
 
-	addedOrUpdated, removed := computeTagsDelta(latestTags, desiredTags)
+	from := toACKTags(latestTags)
+	to := toACKTags(desiredTags)
+	added, _, removed := ackcompare.GetTagsDifference(from, to)
 
 	if len(removed) > 0 {
 		_, err = client.UntagResource(
 			ctx,
 			&svcsdk.UntagResourceInput{
 				SecretId: &resourceARN,
-				TagKeys:  removed,
+				TagKeys:  slices.Sorted(maps.Keys(removed)),
 			},
 		)
 		mr.RecordAPICall("UPDATE", "UntagResource", err)
@@ -67,12 +72,12 @@ func SyncResourceTags(
 		}
 	}
 
-	if len(addedOrUpdated) > 0 {
+	if len(added) > 0 {
 		_, err = client.TagResource(
 			ctx,
 			&svcsdk.TagResourceInput{
 				SecretId: &resourceARN,
-				Tags:     sdkTagsFromResourceTags(addedOrUpdated),
+				Tags:     sdkTagsFromACKTags(added),
 			},
 		)
 		mr.RecordAPICall("UPDATE", "TagResource", err)
@@ -84,50 +89,34 @@ func SyncResourceTags(
 	return nil
 }
 
-// svcTagsFromResourceTags transforms a *svcapitypes.Tag array to a *svcsdk.Tag array.
-func sdkTagsFromResourceTags(rTags []*svcapitypes.Tag) []svcsdktypes.Tag {
-	tags := make([]svcsdktypes.Tag, len(rTags))
-	for i := range rTags {
-		tags[i] = svcsdktypes.Tag{
-			Key:   rTags[i].Key,
-			Value: rTags[i].Value,
+// toACKTags transforms a *svcapitypes.Tag array to an acktags.Tags map. Nil
+// tags and tags without a key are skipped.
+func toACKTags(tags []*svcapitypes.Tag) acktags.Tags {
+	m := make(acktags.Tags)
+	for _, t := range tags {
+		if t == nil || t.Key == nil {
+			continue
 		}
+		v := ""
+		if t.Value != nil {
+			v = *t.Value
+		}
+		m[*t.Key] = v
+	}
+	return m
+}
+
+// sdkTagsFromACKTags transforms an acktags.Tags map to a svcsdktypes.Tag array,
+// sorted by key so that the API request is deterministic.
+func sdkTagsFromACKTags(rTags acktags.Tags) []svcsdktypes.Tag {
+	tags := make([]svcsdktypes.Tag, 0, len(rTags))
+	for _, k := range slices.Sorted(maps.Keys(rTags)) {
+		key := k // explicit copy — safe under any Go version, not just 1.22+
+		val := rTags[k]
+		tags = append(tags, svcsdktypes.Tag{
+			Key:   &key,
+			Value: &val,
+		})
 	}
 	return tags
-}
-
-// computeTagsDelta compares two Tag arrays and return two different list
-// containing the addedOrupdated and removed tags. The removed tags array
-// only contains the tags Keys.
-func computeTagsDelta(
-	a []*svcapitypes.Tag,
-	b []*svcapitypes.Tag,
-) (addedOrUpdated []*svcapitypes.Tag, removed []string) {
-	var visitedIndexes []string
-mainLoop:
-	for _, aElement := range a {
-		visitedIndexes = append(visitedIndexes, *aElement.Key)
-		for _, bElement := range b {
-			if equalStrings(aElement.Key, bElement.Key) {
-				if !equalStrings(aElement.Value, bElement.Value) {
-					addedOrUpdated = append(addedOrUpdated, bElement)
-				}
-				continue mainLoop
-			}
-		}
-		removed = append(removed, *aElement.Key)
-	}
-	for _, bElement := range b {
-		if !ackutil.InStrings(*bElement.Key, visitedIndexes) {
-			addedOrUpdated = append(addedOrUpdated, bElement)
-		}
-	}
-	return addedOrUpdated, removed
-}
-
-func equalStrings(a, b *string) bool {
-	if a == nil {
-		return b == nil || *b == ""
-	}
-	return (*a == "" && b == nil) || *a == *b
 }
