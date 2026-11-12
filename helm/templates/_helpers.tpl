@@ -78,6 +78,14 @@ rules:
   - get
   - list
 - apiGroups:
+  - lambda.services.k8s.aws
+  resources:
+  - functions
+  - functions/status
+  verbs:
+  - get
+  - list
+- apiGroups:
   - secretsmanager.services.k8s.aws
   resources:
   - secrets

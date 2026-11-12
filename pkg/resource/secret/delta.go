@@ -41,6 +41,7 @@ func newResourceDelta(
 		delta.Add("", a, b)
 		return delta
 	}
+	customPreCompare(delta, a, b)
 
 	if ackcompare.HasNilDifference(a.ko.Spec.Description, b.ko.Spec.Description) {
 		delta.Add("Spec.Description", a.ko.Spec.Description, b.ko.Spec.Description)
@@ -79,6 +80,9 @@ func newResourceDelta(
 		if !equality.Semantic.Equalities.DeepEqual(a.ko.Spec.ReplicaRegions, b.ko.Spec.ReplicaRegions) {
 			delta.Add("Spec.ReplicaRegions", a.ko.Spec.ReplicaRegions, b.ko.Spec.ReplicaRegions)
 		}
+	}
+	if !equality.Semantic.Equalities.DeepEqual(a.ko.Spec.RotationLambdaRef, b.ko.Spec.RotationLambdaRef) {
+		delta.Add("Spec.RotationLambdaRef", a.ko.Spec.RotationLambdaRef, b.ko.Spec.RotationLambdaRef)
 	}
 	if ackcompare.HasNilDifference(a.ko.Spec.SecretString, b.ko.Spec.SecretString) {
 		delta.Add("Spec.SecretString", a.ko.Spec.SecretString, b.ko.Spec.SecretString)
